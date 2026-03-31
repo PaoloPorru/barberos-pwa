@@ -26,6 +26,18 @@ Stack: **Supabase** (database + auth gratuito) + **Vercel** (hosting gratuito) +
 3. Copia tutto il contenuto del file `supabase_schema.sql`
 4. Incolla nell'editor e clicca **"Run"** (▶️)
 5. Dovresti vedere "Success" — il database è pronto con tutti i servizi di default
+6. *(Opzionale ma consigliato)* Esegui anche `supabase_schema_v2.sql` e, se la registrazione dà errore, `supabase_fix_signup.sql`
+
+---
+
+## ⚡ Edge Functions — email e promemoria (opzionale)
+
+Per deployare **`notify`** (email su appuntamenti) e **`reminder`** (cron giornaliero) dalla cartella `supabase/functions/`:
+
+1. Installa la [Supabase CLI](https://supabase.com/docs/guides/cli) (`brew install supabase/tap/supabase`)
+2. Segui **`supabase/README.md`** (link progetto, `secrets`, `supabase functions deploy`, webhook e cron)
+
+Script rapido dalla root del repo: `./scripts/deploy-supabase-functions.sh`
 
 ---
 
