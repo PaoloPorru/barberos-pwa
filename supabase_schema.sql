@@ -121,6 +121,16 @@ BEGIN
 END;
 $$;
 
+ALTER FUNCTION public.handle_new_user() OWNER TO postgres;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+    GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
+    GRANT ALL ON TABLE public.profiles TO supabase_auth_admin;
+  END IF;
+END $$;
+
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users

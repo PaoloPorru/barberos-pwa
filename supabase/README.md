@@ -75,6 +75,10 @@ supabase functions serve notify --env-file supabase/.env.local
 
 Crea `supabase/.env.local` con le variabili necessarie (non committare).
 
+## Registrazione: «Database error saving new user»
+
+Significa che il trigger su `auth.users` non riesce a fare `INSERT` in `public.profiles` (permessi `supabase_auth_admin`, trigger mancante o policy RLS in conflitto). Esegui dall’SQL Editor **tutto** il file `supabase_fix_signup.sql` nella root del repo e riprova la signup.
+
 ## `verify_jwt` e webhook
 
 In `config.toml`, `notify` ha `verify_jwt = true`. Il webhook del database deve inviare `Authorization: Bearer <service_role_jwt>`. Se incontri 401, controlla l’header nel dashboard del webhook. Solo in ultima istanza: `supabase functions deploy notify --no-verify-jwt` (meno sicuro).

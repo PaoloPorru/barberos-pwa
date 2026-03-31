@@ -481,9 +481,15 @@ async function doReg(){
   const btn=ge('btnr'); btn.disabled=true; btn.textContent='Creazione...';
   const {data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln,...(ph?{phone:ph}:{})}}});
   if(error){
-    const raw=(error.message||'')+(error.status||'');
+    const msg=error.message||'';
+    const raw=msg+(error.status||'');
+    const dbSave=/Database error saving new user|saving new user/i.test(msg);
     const isSrv=error.status===500||/500|unexpected|server|Internal/i.test(raw);
-    toast(isSrv?'Registrazione non riuscita (errore server Supabase). Apri il file supabase_fix_signup.sql nel progetto ed eseguilo in SQL Editor; controlla anche Auth → SMTP.':error.message,'er');
+    if(dbSave||isSrv){
+      toast('Registrazione bloccata dal database (profilo utente). In Supabase → SQL Editor esegui tutto supabase_fix_signup.sql (permessi trigger). Poi riprova.', 'er');
+    }else{
+      toast(msg,'er');
+    }
   }
   else if(data.user){await loadProfile(data.user);afterLogin();toast('Benvenuto, '+fn+'!');}
   btn.disabled=false; btn.textContent='Crea Account →';

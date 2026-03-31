@@ -1,14 +1,13 @@
 -- ============================================================
--- BARBEROS — Fix registrazione (500 su /auth/v1/signup)
--- Esegui in Supabase → SQL Editor se la signup fallisce con
--- x_sb_error_code: unexpected_failure
+-- BARBEROS — Fix registrazione
+-- Errore tipico: "Database error saving new user" / unexpected_failure
+-- Esegui TUTTO in Supabase → SQL Editor → Run
 -- ============================================================
 --
--- Cause frequenti:
--- 1) Trigger handle_new_user: search_path non impostato, INSERT duplicato,
---    o ruolo nei metadata non valido per il CHECK su profiles.role
--- 2) Email: SMTP non configurato o errore invio → a volte 500 su signup
---    (Dashboard → Project Settings → Auth → SMTP / disabilita conferma email per test)
+-- Cause n°1: il trigger inserisce in profiles ma il ruolo interno di Auth
+-- (supabase_auth_admin) non ha permesso su public.profiles → fallisce l'INSERT.
+--
+-- Cause n°2: SMTP / conferma email (Project Settings → Auth).
 --
 -- ============================================================
 
@@ -39,6 +38,17 @@ BEGIN
 END;
 $$;
 
+-- Proprietario postgres + permessi per Auth (hosted Supabase)
+ALTER FUNCTION public.handle_new_user() OWNER TO postgres;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+    GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
+    GRANT ALL ON TABLE public.profiles TO supabase_auth_admin;
+  END IF;
+END $$;
+
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
 CREATE TRIGGER on_auth_user_created
@@ -46,7 +56,7 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
--- Se la riga sopra dà errore di sintassi (Postgres vecchio), usa:
+-- Se la riga sopra dà errore di sintassi, in Postgres ≤14 usa:
 -- CREATE TRIGGER on_auth_user_created
 --   AFTER INSERT ON auth.users
 --   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
