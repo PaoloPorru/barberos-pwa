@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0a0a0a"/>
+<link rel="manifest" href="/manifest.json"/>
+<title>BarberOS</title>
+<style>
+:root{--bg:#0a0a0a;--surf:#141414;--card:#1c1c1c;--bdr:#2a2a2a;--gold:#c9a84c;--gdim:rgba(201,168,76,.1);--cream:#f0ebe0;--mut:#5a5a5a;--grn:#4caf78;--red:#e05c5c;--blu:#5c8fe0;--r:10px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--cream);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;}
+#shell{height:100dvh;max-width:430px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;position:relative;}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .2s;}
+.scr.on{opacity:1;pointer-events:all;}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:82px;}
+.scroll::-webkit-scrollbar{display:none;}
+.tb{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;border-bottom:1px solid var(--bdr);flex-shrink:0;gap:8px;}
+.logo{font-family:Georgia,serif;font-size:22px;letter-spacing:3px;font-weight:700;}
+.logo em{color:var(--gold);font-style:normal;}
+.tbsub{font-size:10px;color:var(--mut);letter-spacing:.5px;text-transform:uppercase;font-family:monospace;}
+#nav{background:var(--surf);border-top:1px solid var(--bdr);flex-shrink:0;display:none;}
+#nav-row{display:flex;}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px;cursor:pointer;color:var(--mut);gap:3px;transition:color .15s;user-select:none;}
+.ni.on{color:var(--gold);}
+.ni:active{opacity:.6;}
+.niico{font-size:20px;}
+.nilbl{font-size:10px;text-transform:uppercase;letter-spacing:.3px;font-family:monospace;}
+.card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;}
+.btn{width:100%;padding:14px;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s,transform .1s;}
+.btn:active:not(:disabled){transform:scale(.97);opacity:.85;}
+.btnp{background:var(--gold);color:#0a0a0a;}
+.btnp:disabled{opacity:.38;cursor:not-allowed;}
+.btng{background:none;color:var(--cream);border:1px solid var(--bdr);}
+.btnd{background:rgba(224,92,92,.12);color:var(--red);border:1px solid rgba(224,92,92,.3);}
+.btnsm{padding:9px 16px;font-size:13px;width:auto;border-radius:8px;}
+.btnical{background:rgba(92,143,224,.12);color:var(--blu);border:1px solid rgba(92,143,224,.3);}
+.btngcal{background:rgba(76,175,120,.12);color:var(--grn);border:1px solid rgba(76,175,120,.3);}
+.inp{width:100%;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:13px 16px;color:var(--cream);font-size:15px;outline:none;transition:border-color .15s;-webkit-appearance:none;font-family:inherit;}
+.inp:focus{border-color:var(--gold);}
+.inp::placeholder{color:var(--mut);}
+select.inp{cursor:pointer;}
+.lbl{display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);margin-bottom:7px;font-family:monospace;}
+.fg{margin-bottom:13px;}
+.gr2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;letter-spacing:.5px;text-transform:uppercase;font-family:monospace;}
+.bgc{background:rgba(76,175,120,.14);color:var(--grn);border:1px solid rgba(76,175,120,.25);}
+.bgx{background:rgba(224,92,92,.14);color:var(--red);border:1px solid rgba(224,92,92,.25);}
+.bgd{background:rgba(92,143,224,.14);color:var(--blu);border:1px solid rgba(92,143,224,.25);}
+.bgp{background:rgba(201,168,76,.14);color:var(--gold);border:1px solid rgba(201,168,76,.25);}
+.sb{padding:12px 16px;background:var(--bg);border-top:1px solid var(--bdr);flex-shrink:0;}
+.spin{width:28px;height:28px;border:2px solid var(--bdr);border-top-color:var(--gold);border-radius:50%;animation:sp .7s linear infinite;margin:auto;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.ctr{display:flex;align-items:center;justify-content:center;padding:60px;}
+.htabs{display:flex;gap:7px;padding:11px 14px;overflow-x:auto;flex-shrink:0;}
+.htabs::-webkit-scrollbar{display:none;}
+.htab{padding:7px 15px;border-radius:20px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;white-space:nowrap;border:1px solid var(--bdr);color:var(--mut);transition:all .15s;font-family:monospace;}
+.htab.on{background:var(--gold);border-color:var(--gold);color:#0a0a0a;}
+.crow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--bdr);}
+.crow:last-child{border-bottom:none;}
+.crlbl{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;font-family:monospace;}
+.crval{font-weight:500;font-size:14px;text-align:right;max-width:65%;}
+#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--card);border:1px solid var(--bdr);border-radius:20px;padding:10px 18px;font-size:13px;font-weight:500;z-index:900;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;max-width:300px;text-align:center;}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.ok{border-color:rgba(76,175,120,.4);color:var(--grn);}
+#toast.er{border-color:rgba(224,92,92,.4);color:var(--red);}
+/* BANNERS */
+.banner{display:none;align-items:center;gap:12px;margin:10px 14px 0;padding:12px 14px;border-radius:10px;background:var(--gdim);border:1px solid rgba(201,168,76,.3);}
+.banner.show{display:flex;}
+/* AUTH */
+#sa{justify-content:flex-end;}
+.ahero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px 20px;position:relative;overflow:hidden;}
+.aglow{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(201,168,76,.09) 0%,transparent 70%);pointer-events:none;}
+.alogo{font-family:Georgia,serif;font-size:68px;letter-spacing:6px;line-height:1;text-align:center;z-index:1;font-weight:700;}
+.alogo em{color:var(--gold);font-style:normal;}
+.atag{color:var(--mut);font-size:14px;text-align:center;margin-top:8px;z-index:1;}
+.apanel{background:var(--surf);border-top:1px solid var(--bdr);border-radius:24px 24px 0 0;padding:24px 20px 36px;overflow-y:auto;max-height:73dvh;}
+.atabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:18px;}
+.atab{flex:1;padding:9px;text-align:center;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;color:var(--mut);transition:all .18s;}
+.atab.on{background:var(--card);color:var(--cream);border:1px solid var(--bdr);}
+/* BOOKING */
+.bhdr{padding:16px 18px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.greet{color:var(--mut);font-size:14px;}
+.greet strong{color:var(--gold);}
+.sectit{font-size:28px;letter-spacing:2px;margin-top:2px;font-weight:700;font-family:Georgia,serif;}
+.steps{display:flex;align-items:center;padding:13px 18px 11px;gap:6px;flex-shrink:0;border-bottom:1px solid var(--bdr);}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--bdr);transition:all .2s;}
+.sdot.dn{background:var(--gold);width:18px;border-radius:4px;}
+.sdot.ac{background:var(--gold);}
+.slbl{font-size:11px;color:var(--gold);margin-left:6px;font-family:monospace;}
+.svgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:14px;}
+.svc{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:15px;cursor:pointer;transition:border-color .15s;position:relative;overflow:hidden;}
+.svc:active{transform:scale(.97);}
+.svc.sel{border-color:var(--gold);background:rgba(201,168,76,.05);}
+.svc::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .18s;transform-origin:left;}
+.svc.sel::after{transform:scaleX(1);}
+.svn{font-weight:600;font-size:13px;margin-bottom:4px;line-height:1.3;}
+.svp{font-size:22px;color:var(--gold);font-weight:700;font-family:Georgia,serif;}
+.svd{font-size:10px;color:var(--mut);margin-top:3px;font-family:monospace;}
+.blist{display:flex;flex-direction:column;gap:9px;padding:14px;}
+.bcard{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:13px 15px;display:flex;align-items:center;gap:13px;cursor:pointer;transition:border-color .15s;}
+.bcard:active{border-color:var(--gold);}
+.bcard.sel{border-color:var(--gold);background:rgba(201,168,76,.05);}
+.bav{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.bnm{font-weight:600;font-size:14px;}
+.bbo{font-size:12px;color:var(--mut);margin-top:2px;line-height:1.4;}
+.bchk{width:22px;height:22px;border-radius:50%;border:2px solid var(--bdr);margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s;}
+.bcard.sel .bchk{background:var(--gold);border-color:var(--gold);color:#0a0a0a;}
+.dgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.dcel{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1px solid transparent;transition:all .15s;background:var(--card);gap:1px;}
+.dcel:active:not(.dis){transform:scale(.88);}
+.dcel.sel{background:var(--gold);color:#0a0a0a;}
+.dcel.dis{opacity:.25;pointer-events:none;}
+.ddow{font-size:8px;color:var(--mut);text-transform:uppercase;font-family:monospace;}
+.dcel.sel .ddow,.dcel.sel .dmon2{color:rgba(0,0,0,.5);}
+.ddx{font-weight:600;font-size:14px;}
+.dmon2{font-size:8px;color:var(--mut);font-family:monospace;}
+.slgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.slt{padding:12px 4px;border-radius:8px;text-align:center;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--bdr);background:var(--card);color:var(--cream);transition:all .15s;font-family:monospace;}
+.slt:active{transform:scale(.9);}
+.slt.sel{background:var(--gold);border-color:var(--gold);color:#0a0a0a;}
+.apc{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:15px;display:flex;gap:13px;align-items:flex-start;position:relative;overflow:hidden;}
+.apac{position:absolute;left:0;top:0;width:3px;height:100%;}
+.apdb{text-align:center;min-width:40px;}
+.apdy{font-size:28px;line-height:1;font-weight:700;font-family:Georgia,serif;}
+.apmn{font-size:10px;color:var(--mut);text-transform:uppercase;font-family:monospace;}
+.apsv{font-weight:600;font-size:15px;}
+.apmeta{font-size:12px;color:var(--mut);margin-top:3px;}
+.appr{font-size:22px;color:var(--gold);font-weight:700;font-family:Georgia,serif;}
+.cdhdr{display:grid;grid-template-columns:44px repeat(3,1fr);border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.cdlbl{text-align:center;padding:9px 4px;font-size:10px;color:var(--mut);text-transform:uppercase;font-family:monospace;}
+.cdlbl.td{color:var(--gold);}
+.cgrid{display:grid;grid-template-columns:44px repeat(3,1fr);}
+.chrl{padding:8px 4px 0 0;text-align:right;font-size:10px;color:var(--mut);min-height:52px;font-family:monospace;}
+.ccel{border-left:1px solid var(--bdr);border-top:1px solid var(--bdr);min-height:52px;padding:3px;}
+.capt{border-radius:5px;padding:4px 6px;font-size:11px;font-weight:500;line-height:1.3;cursor:pointer;margin-bottom:2px;}
+.captn{color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.capts{color:rgba(255,255,255,.45);font-size:10px;}
+.stgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;}
+.stcard{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:15px;border-left:3px solid var(--gold);}
+.stcard.g{border-left-color:var(--grn);}
+.stcard.b{border-left-color:var(--blu);}
+.stcard.r{border-left-color:var(--red);}
+.stlbl{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;font-family:monospace;}
+.stval{font-size:32px;line-height:1.1;margin-top:4px;font-weight:700;font-family:Georgia,serif;}
+.stsub{font-size:11px;color:var(--mut);margin-top:2px;}
+.mover{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:flex-end;opacity:0;transition:opacity .2s;pointer-events:none;}
+.mover.on{opacity:1;pointer-events:all;}
+.msheet{width:100%;max-width:430px;margin:0 auto;background:var(--surf);border-radius:20px 20px 0 0;border-top:1px solid var(--bdr);padding:8px 0 0;transform:translateY(100%);transition:transform .25s cubic-bezier(.32,.72,0,1);max-height:85dvh;overflow-y:auto;}
+.mover.on .msheet{transform:translateY(0);}
+.mhnd{width:36px;height:4px;background:var(--bdr);border-radius:2px;margin:0 auto 14px;}
+.mtit{font-size:22px;letter-spacing:2px;padding:0 20px 14px;font-weight:700;font-family:Georgia,serif;}
+.mbody{padding:0 20px 32px;}
+/* CALENDAR BUTTONS */
+.cal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+/* NOTIFICATION PERMISSION */
+.notif-banner{background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.25);border-radius:10px;padding:14px;margin:12px 14px 0;display:none;}
+.notif-banner.show{display:block;}
+</style>
+</head>
+<body>
+<div id="shell">
+
+  <!-- LOADING -->
+  <div class="scr on" id="sload">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px">
+      <div style="font-family:Georgia,serif;font-size:48px;font-weight:700;letter-spacing:4px">BARBER<em style="color:var(--gold);font-style:normal">OS</em></div>
+      <div class="spin"></div>
+    </div>
+  </div>
+
+  <!-- AUTH -->
+  <div class="scr" id="sa">
+    <div class="ahero">
+      <div class="aglow"></div>
+      <div class="alogo">BARBER<em>OS</em></div>
+      <p class="atag">Il tuo salone, sempre con te</p>
+    </div>
+    <div class="apanel">
+      <div class="atabs">
+        <div class="atab on" id="ta-l" onclick="authTab('l')">Accedi</div>
+        <div class="atab"    id="ta-r" onclick="authTab('r')">Registrati</div>
+      </div>
+      <div id="fl">
+        <div class="fg"><label class="lbl">Email</label><input class="inp" id="le" type="email" placeholder="nome@esempio.it" autocomplete="email"/></div>
+        <div class="fg"><label class="lbl">Password</label><input class="inp" id="lp" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+        <button class="btn btnp" id="btnl" onclick="doLogin()">Accedi →</button>
+      </div>
+      <div id="fr" style="display:none">
+        <div class="gr2">
+          <div class="fg"><label class="lbl">Nome</label><input class="inp" id="rfn" placeholder="Mario" autocomplete="given-name"/></div>
+          <div class="fg"><label class="lbl">Cognome</label><input class="inp" id="rln" placeholder="Rossi" autocomplete="family-name"/></div>
+        </div>
+        <div class="fg"><label class="lbl">Email</label><input class="inp" id="re" type="email" placeholder="mario@esempio.it" autocomplete="email"/></div>
+        <div class="fg"><label class="lbl">Telefono</label><input class="inp" id="rph" type="tel" placeholder="+39 333 1234567" autocomplete="tel"/></div>
+        <div class="fg"><label class="lbl">Password</label><input class="inp" id="rpw" type="password" placeholder="min 8 caratteri" autocomplete="new-password"/></div>
+        <button class="btn btnp" id="btnr" onclick="doReg()">Crea Account →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOME / BOOK -->
+  <div class="scr" id="sh">
+    <div id="notif-banner" class="notif-banner">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:20px">🔔</span>
+        <div style="flex:1"><div style="font-weight:600;font-size:14px">Attiva le notifiche</div><div style="font-size:12px;color:var(--mut)">Ricevi promemoria 24h prima dei tuoi appuntamenti</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btnp btnsm" id="btn-notif">Attiva</button>
+          <button class="btn btnsm" style="background:none;color:var(--mut);border:none;padding:9px 4px" onclick="ge('notif-banner').classList.remove('show')">✕</button>
+        </div>
+      </div>
+    </div>
+    <div id="install-banner" class="banner">
+      <span style="font-size:22px">📲</span>
+      <div style="flex:1"><div style="font-weight:600;font-size:14px">Installa l'app</div><div style="font-size:12px;color:var(--mut)">Aggiungila alla home screen</div></div>
+      <button class="btn btng btnsm" id="btn-install">Installa</button>
+      <button class="btn btnsm" style="background:none;color:var(--mut);border:none;width:auto;padding:4px 8px" onclick="ge('install-banner').classList.remove('show')">✕</button>
+    </div>
+    <div class="bhdr"><div class="greet">Ciao, <strong id="gname">!</strong></div><div class="sectit">PRENOTA</div></div>
+    <div class="steps">
+      <div class="sdot ac" id="sd1"></div><div class="sdot" id="sd2"></div>
+      <div class="sdot" id="sd3"></div><div class="sdot" id="sd4"></div><div class="sdot" id="sd5"></div>
+      <span class="slbl" id="slbl">Scegli Servizio</span>
+    </div>
+    <div class="scroll" id="bbody"></div>
+    <div class="sb" id="bfoot" style="display:none"><button class="btn btnp" id="bnxt" onclick="bkNext()">Continua →</button></div>
+  </div>
+
+  <!-- APPOINTMENTS -->
+  <div class="scr" id="sap">
+    <div class="tb"><div class="logo">BARBER<em>OS</em></div><div class="tbsub">Appuntamenti</div></div>
+    <div class="scroll" id="apbody"><div class="ctr"><div class="spin"></div></div></div>
+  </div>
+
+  <!-- CALENDAR (BARBER) -->
+  <div class="scr" id="scal">
+    <div class="tb">
+      <div class="logo">BARBER<em>OS</em></div>
+      <div class="tbsub" id="cwlbl">Calendario</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btng btnsm" id="cprev" style="padding:7px 13px">‹</button>
+        <button class="btn btng btnsm" id="cnext" style="padding:7px 13px">›</button>
+      </div>
+    </div>
+    <div id="cdhdr" class="cdhdr"></div>
+    <div class="scroll"><div id="cgrid" class="cgrid"></div></div>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="scr" id="sadm">
+    <div class="tb"><div class="logo">BARBER<em>OS</em></div><div class="tbsub">Admin</div></div>
+    <div class="htabs" id="admtabs">
+      <div class="htab on" id="at0" onclick="aTab(0)">📊 Stats</div>
+      <div class="htab"    id="at1" onclick="aTab(1)">📋 Prenotazioni</div>
+      <div class="htab"    id="at2" onclick="aTab(2)">✂️ Barbieri</div>
+      <div class="htab"    id="at3" onclick="aTab(3)">💈 Servizi</div>
+    </div>
+    <div class="scroll" id="admbody"></div>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="scr" id="spro">
+    <div class="tb"><div class="logo">BARBER<em>OS</em></div><div class="tbsub">Profilo</div></div>
+    <div class="scroll" id="probody"></div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="nav">
+    <div id="nav-row">
+      <div class="ni on" id="ni0" onclick="goNav(0)"><div class="niico">✂️</div><div class="nilbl">Prenota</div></div>
+      <div class="ni"    id="ni1" onclick="goNav(1)"><div class="niico">📋</div><div class="nilbl">App.ti</div></div>
+      <div class="ni"    id="ni2" onclick="goNav(2)" style="display:none"><div class="niico">📅</div><div class="nilbl">Calendario</div></div>
+      <div class="ni"    id="ni3" onclick="goNav(3)" style="display:none"><div class="niico">📊</div><div class="nilbl">Dashboard</div></div>
+      <div class="ni"    id="ni4" onclick="goNav(4)"><div class="niico">👤</div><div class="nilbl">Profilo</div></div>
+    </div>
+  </nav>
+</div>
+
+<div id="toast"></div>
+
+<div class="mover" id="modal">
+  <div class="msheet">
+    <div class="mhnd"></div>
+    <div class="mtit" id="mtit"></div>
+    <div class="mbody" id="mbody"></div>
+  </div>
+</div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════
+// ⚙️  CONFIGURAZIONE — sostituisci con i tuoi valori
+// ═══════════════════════════════════════════════
+const SUPABASE_URL = 'https://XXXXXXXXXXXXXXXX.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXXXXXX';
+// Chiave pubblica VAPID per le push (genera su https://vapidkeys.com)
+const VAPID_PUBLIC = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+// ═══════════════════════════════════════════════
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MONTHS=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const DAYS=['Do','Lu','Ma','Me','Gi','Ve','Sa'];
+const BMAP={CONFIRMED:'bgc',CANCELLED:'bgx',COMPLETED:'bgd',PENDING:'bgp'};
+const BLBL={CONFIRMED:'Confermato',CANCELLED:'Cancellato',COMPLETED:'Completato',PENDING:'In attesa'};
+const SCREENS=['sload','sa','sh','sap','scal','sadm','spro'];
+const SNAV=['sh','sap','scal','sadm','spro'];
+
+let ST={user:null,profile:null,barber:null,bk:{step:1,svc:null,bar:null,date:null,slot:null,notes:''},calOff:0,aTab:0};
+
+// ── UTILS ────────────────────────────────────────────────────
+let _tt;
+function toast(msg,type){clearTimeout(_tt);const el=ge('toast');el.textContent=msg;el.className='on '+(type||'ok');_tt=setTimeout(()=>el.className='',2800);}
+function ge(id){return document.getElementById(id);}
+function ce(tag,cls,txt){const el=document.createElement(tag);if(cls)el.className=cls;if(txt!==undefined)el.textContent=txt;return el;}
+function ap(p,c){p.appendChild(c);return c;}
+function showScreen(id){SCREENS.forEach(s=>{const el=ge(s);if(el)el.className='scr'+(s===id?' on':'');});}
+function setNav(idx){for(let i=0;i<=4;i++){const el=ge('ni'+i);if(el)el.className='ni'+(i===idx?' on':'');}}
+
+// ═══════════════════════════════════════════════════════════
+// 🔔 PUSH NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════
+let _swReg = null;
+
+async function initServiceWorker(){
+  if(!('serviceWorker' in navigator)) return;
+  _swReg = await navigator.serviceWorker.register('/sw.js');
+  // Mostra banner notifiche se non già concesse
+  if(Notification.permission === 'default'){
+    setTimeout(()=>ge('notif-banner').classList.add('show'), 3000);
+  }
+}
+
+async function requestPushPermission(){
+  if(!('Notification' in window)){toast('Notifiche non supportate su questo browser','er');return;}
+  const perm = await Notification.requestPermission();
+  if(perm !== 'granted'){toast('Notifiche non autorizzate','er');return;}
+  toast('Notifiche attivate! ✅');
+  ge('notif-banner').classList.remove('show');
+  await subscribePush();
+}
+
+async function subscribePush(){
+  if(!_swReg || !ST.user) return;
+  try {
+    const existing = await _swReg.pushManager.getSubscription();
+    if(existing) return; // già sottoscritto
+    const sub = await _swReg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC)
+    });
+    // Salva la subscription su Supabase (tabella push_subscriptions)
+    await sb.from('push_subscriptions').upsert({
+      user_id: ST.user.id,
+      subscription: JSON.stringify(sub),
+      updated_at: new Date().toISOString()
+    });
+  } catch(e){console.error('Push sub failed:',e);}
+}
+
+function urlBase64ToUint8Array(b64){
+  const pad = '='.repeat((4-b64.length%4)%4);
+  const raw = atob((b64+pad).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+
+// ─── Notifica locale immediata (non richiede server) ─────────
+function localNotify(title, body, url){
+  if(Notification.permission !== 'granted') return;
+  const n = new Notification(title, { body, icon: '/manifest.json', badge: '/manifest.json', tag:'barberos', data: url });
+  n.onclick = ()=>{ window.focus(); n.close(); };
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📅 CALENDAR SYNC
+// ═══════════════════════════════════════════════════════════
+
+// Genera file .ics (iCalendar) per Apple Calendar / Outlook
+function generateICS(apt){
+  const svc  = apt.services;
+  const bfn  = apt.barbers?.profiles?.first_name || '';
+  const bln  = apt.barbers?.profiles?.last_name  || '';
+  const start = new Date(apt.start_datetime);
+  const end   = new Date(apt.end_datetime);
+  const fmt   = d => d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const uid   = apt.id + '@barberos.app';
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//BarberOS//IT',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    'UID:'+uid,
+    'DTSTART:'+fmt(start),
+    'DTEND:'+fmt(end),
+    'SUMMARY:✂️ '+svc?.name+' da '+bfn+' '+bln,
+    'DESCRIPTION:Appuntamento barberia BarberOS\\nServizio: '+svc?.name+'\\nBarbiere: '+bfn+' '+bln+'\\nPrezzo: €'+apt.price_snapshot,
+    'LOCATION:Barberia',
+    'STATUS:CONFIRMED',
+    'TRANSP:OPAQUE',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT1H',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Promemoria appuntamento tra 1 ora',
+    'END:VALARM',
+    'BEGIN:VALARM',
+    'TRIGGER:-P1D',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Appuntamento domani!',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+  return ics;
+}
+
+function downloadICS(apt){
+  const ics  = generateICS(apt);
+  const blob = new Blob([ics], {type:'text/calendar;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'appuntamento-barberos.ics';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Calendario scaricato! Aprilo per importare ✅');
+}
+
+function openGoogleCalendar(apt){
+  const svc   = apt.services;
+  const bfn   = apt.barbers?.profiles?.first_name || '';
+  const bln   = apt.barbers?.profiles?.last_name  || '';
+  const start = new Date(apt.start_datetime);
+  const end   = new Date(apt.end_datetime);
+  const fmt   = d => d.toISOString().replace(/[-:]/g,'').replace('.000','');
+  const title = encodeURIComponent('✂️ '+svc?.name+' da '+bfn+' '+bln);
+  const desc  = encodeURIComponent('Appuntamento barberia BarberOS\nServizio: '+svc?.name+'\nPrezzo: €'+apt.price_snapshot);
+  const url   = 'https://calendar.google.com/calendar/render?action=TEMPLATE'+
+    '&text='+title+'&dates='+fmt(start)+'/'+fmt(end)+'&details='+desc+'&sf=true&output=xml';
+  window.open(url, '_blank');
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+function authTab(t){
+  ge('ta-l').className='atab'+(t==='l'?' on':'');
+  ge('ta-r').className='atab'+(t==='r'?' on':'');
+  ge('fl').style.display=t==='l'?'':'none';
+  ge('fr').style.display=t==='r'?'':'none';
+}
+
+async function doLogin(){
+  const email=(ge('le').value||'').trim(), pw=ge('lp').value||'';
+  if(!email||!pw){toast('Inserisci email e password','er');return;}
+  const btn=ge('btnl'); btn.disabled=true; btn.textContent='Accesso...';
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
+  if(error){toast(error.message==='Invalid login credentials'?'Email o password non validi':error.message,'er');}
+  else{await loadProfile(data.user);afterLogin();}
+  btn.disabled=false; btn.textContent='Accedi →';
+}
+
+async function doReg(){
+  const fn=(ge('rfn').value||'').trim(),ln=(ge('rln').value||'').trim(),em=(ge('re').value||'').trim();
+  const ph=(ge('rph').value||'').trim(),pw=ge('rpw').value||'';
+  if(!fn||!ln||!em||!pw){toast('Compila tutti i campi','er');return;}
+  if(pw.length<8){toast('Password di almeno 8 caratteri','er');return;}
+  const btn=ge('btnr'); btn.disabled=true; btn.textContent='Creazione...';
+  const {data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln,phone:ph,role:'CLIENT'}}});
+  if(error){toast(error.message,'er');}
+  else if(data.user){await loadProfile(data.user);afterLogin();toast('Benvenuto, '+fn+'!');}
+  btn.disabled=false; btn.textContent='Crea Account →';
+}
+
+async function loadProfile(user){
+  ST.user=user;
+  const {data}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  ST.profile=data;
+  if(data?.role==='BARBER'){
+    const {data:b}=await sb.from('barbers').select('*').eq('user_id',user.id).single();
+    ST.barber=b;
+  }
+}
+
+function afterLogin(){
+  const p=ST.profile; if(!p){toast('Profilo non trovato','er');return;}
+  ge('nav').style.display='block';
+  ge('gname').textContent=p.first_name+'!';
+  ge('ni0').style.display=(p.role==='CLIENT'||p.role==='ADMIN')?'flex':'none';
+  ge('ni1').style.display=p.role!=='ADMIN'?'flex':'none';
+  ge('ni2').style.display=p.role==='BARBER'?'flex':'none';
+  ge('ni3').style.display=p.role==='ADMIN'?'flex':'none';
+  ge('ni4').style.display='flex';
+  if(p.role==='BARBER'){setNav(2);showScreen('scal');renderCal();}
+  else if(p.role==='ADMIN'){setNav(3);showScreen('sadm');ST.aTab=0;renderAdmin();}
+  else{setNav(0);resetBk();showScreen('sh');renderBook();}
+  // Init push notifications
+  initServiceWorker();
+  toast('Bentornato, '+p.first_name+'! ✂️');
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  // Unsub push
+  if(_swReg){const s=await _swReg.pushManager.getSubscription();if(s)await s.unsubscribe();}
+  ST={user:null,profile:null,barber:null,bk:{step:1,svc:null,bar:null,date:null,slot:null,notes:''},calOff:0,aTab:0};
+  ge('nav').style.display='none';
+  ge('le').value='';ge('lp').value='';
+  showScreen('sa');toast('Logout effettuato');
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function goNav(idx){
+  setNav(idx);showScreen(SNAV[idx]);
+  if(idx===0){resetBk();renderBook();}
+  if(idx===1)renderApts();
+  if(idx===2)renderCal();
+  if(idx===3){ST.aTab=0;renderAdmin();}
+  if(idx===4)renderProfile();
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOOKING WIZARD
+// ═══════════════════════════════════════════════════════════
+const SLBLS=['Scegli Servizio','Scegli Barbiere','Scegli Data','Scegli Orario','Conferma'];
+function resetBk(){ST.bk={step:1,svc:null,bar:null,date:null,slot:null,notes:''};}
+function updSteps(){
+  const st=ST.bk.step;
+  for(let i=1;i<=5;i++){const d=ge('sd'+i);if(!d)continue;if(i<st)d.className='sdot dn';else if(i===st)d.className='sdot ac';else d.className='sdot';}
+  ge('slbl').textContent=SLBLS[st-1];
+}
+async function renderBook(){
+  updSteps();
+  const bk=ST.bk,body=ge('bbody'),foot=ge('bfoot');
+  foot.style.display='none';
+  ge('bnxt').textContent=bk.step===5?'Conferma Prenotazione':'Continua →';
+  body.innerHTML='<div class="ctr"><div class="spin"></div></div>';
+  if(bk.step===1)await renderStepSvc(body,bk);
+  if(bk.step===2)await renderStepBar(body,bk);
+  if(bk.step===3)renderStepDate(body,bk);
+  if(bk.step===4)await renderStepSlot(body,bk);
+  if(bk.step===5)renderStepConfirm(body,bk);
+  if((bk.step===1&&bk.svc)||(bk.step===2&&bk.bar)||(bk.step===3&&bk.date)||(bk.step===4&&bk.slot)||bk.step===5)foot.style.display='block';
+}
+
+async function renderStepSvc(body,bk){
+  const {data:svcs}=await sb.from('services').select('*').eq('is_active',true).order('sort_order');
+  body.innerHTML='';
+  const grid=ap(body,ce('div','svgrid'));
+  (svcs||[]).forEach(sv=>{
+    const card=ap(grid,ce('div','svc'+(bk.svc?.id===sv.id?' sel':'')));
+    ap(card,ce('div','svn',sv.name));ap(card,ce('div','svp','€'+sv.price));ap(card,ce('div','svd','⏱ '+sv.duration_minutes+' min'));
+    card.onclick=()=>{ST.bk.svc=sv;ST.bk.bar=null;ST.bk.date=null;ST.bk.slot=null;renderBook();};
+  });
+}
+async function renderStepBar(body,bk){
+  const {data:bars}=await sb.from('barbers').select('*, profiles(first_name,last_name)').eq('is_accepting',true);
+  body.innerHTML='';
+  const list=ap(body,ce('div','blist'));
+  (bars||[]).forEach(b=>{
+    const fn=b.profiles?.first_name||'',ln=b.profiles?.last_name||'';
+    const card=ap(list,ce('div','bcard'+(bk.bar?.id===b.id?' sel':'')));
+    const av=ap(card,ce('div','bav'));av.style.background=b.color_hex+'22';av.style.border='2px solid '+b.color_hex;av.textContent='✂️';
+    const info=ap(card,ce('div'));info.style.flex='1';
+    ap(info,ce('div','bnm',fn+' '+ln));if(b.bio)ap(info,ce('div','bbo',b.bio));
+    const chk=ap(card,ce('div','bchk'));if(bk.bar?.id===b.id)chk.textContent='✓';
+    card.onclick=()=>{ST.bk.bar={...b,fn,ln};ST.bk.date=null;ST.bk.slot=null;renderBook();};
+  });
+}
+function renderStepDate(body,bk){
+  body.innerHTML='';
+  const pad=ap(body,ce('div'));pad.style.padding='12px 14px 0';
+  const h=ap(pad,ce('div',null,'Seleziona una data (domenica chiuso)'));h.style.cssText='font-size:13px;color:var(--mut);margin-bottom:10px';
+  const grid=ap(pad,ce('div','dgrid'));
+  const today=new Date();today.setHours(0,0,0,0);
+  for(let i=1;i<=28;i++){
+    const d=new Date(today);d.setDate(today.getDate()+i);
+    const iso=d.toISOString().split('T')[0];
+    const isSun=d.getDay()===0;
+    const cell=ap(grid,ce('div','dcel'+(isSun?' dis':'')+(bk.date===iso?' sel':'')));
+    ap(cell,ce('div','ddow',DAYS[d.getDay()]));ap(cell,ce('div','ddx',''+d.getDate()));ap(cell,ce('div','dmon2',MONTHS[d.getMonth()]));
+    if(!isSun)cell.onclick=()=>{ST.bk.date=iso;ST.bk.slot=null;renderBook();};
+  }
+}
+async function renderStepSlot(body,bk){
+  body.innerHTML='<div class="ctr"><div class="spin"></div></div>';
+  const slots=await calcSlots(bk.bar.id,bk.date,bk.svc.duration_minutes);
+  body.innerHTML='';
+  const d=new Date(bk.date+'T12:00:00');
+  const lbl=d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
+  const pad=ap(body,ce('div'));pad.style.padding='12px 14px 0';
+  const inf=ap(pad,ce('div',null,lbl));inf.style.cssText='font-size:13px;color:var(--mut);margin-bottom:10px;text-transform:capitalize';
+  if(!slots.length){const em=ap(body,ce('div'));em.style.cssText='text-align:center;padding:40px 24px';ap(em,ce('div',null,'😕')).style.fontSize='40px';ap(em,ce('div',null,'Nessuno slot disponibile')).style.cssText='font-weight:600;margin-top:10px';ap(em,ce('div',null,'Prova un\'altra data o barbiere.')).style.cssText='font-size:13px;color:var(--mut);margin-top:6px';return;}
+  const grid=ap(pad,ce('div','slgrid'));
+  slots.forEach(sl=>{
+    const btn=ap(grid,ce('div','slt'+(bk.slot?.label===sl.label?' sel':'')));
+    btn.textContent=sl.label;
+    btn.onclick=()=>{ST.bk.slot=sl;renderBook();};
+  });
+}
+function renderStepConfirm(body,bk){
+  body.innerHTML='';
+  const pad=ap(body,ce('div'));pad.style.padding='14px';
+  const card=ap(pad,ce('div','card'));
+  const d=new Date(bk.date+'T12:00:00');
+  const dlbl=d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const rows=[['Servizio',bk.svc.name],['Barbiere',bk.bar.fn+' '+bk.bar.ln],['Data',dlbl],['Orario',bk.slot.label],['Durata',bk.svc.duration_minutes+' min']];
+  rows.forEach(([l,v],i)=>{const row=ap(card,ce('div','crow'));ap(row,ce('span','crlbl',l));const val=ap(row,ce('span','crval',v));if(i===2)val.style.textTransform='capitalize';});
+  const prRow=ap(card,ce('div','crow'));ap(prRow,ce('span','crlbl','Prezzo'));
+  const prVal=ap(prRow,ce('span','crval','€'+bk.svc.price));prVal.style.cssText='font-family:Georgia,serif;font-size:22px;color:var(--gold)';
+  const mg=ap(pad,ce('div'));mg.style.marginTop='13px';ap(mg,ce('label','lbl','Note per il barbiere'));
+  const ta=ap(mg,ce('textarea','inp'));ta.id='anotes';ta.rows=3;ta.style.resize='none';ta.placeholder='Es. preferisco i capelli più corti sui lati...';ta.value=bk.notes||'';
+  const info=ap(pad,ce('div','card'));info.style.cssText='margin-top:11px;background:rgba(201,168,76,.05);border-color:rgba(201,168,76,.2)';
+  const p=ap(info,ce('p'));p.style.cssText='font-size:11px;color:var(--gold);font-family:monospace';p.textContent='✉️ Riceverai email di conferma + promemoria 24h prima';
+}
+async function calcSlots(barber_id,date,duration){
+  const d=new Date(date+'T12:00:00');
+  const dow=d.getDay();
+  const {data:avRows}=await sb.from('availability').select('start_time,end_time').eq('barber_id',barber_id).eq('day_of_week',dow).eq('is_active',true);
+  if(!avRows?.length)return[];
+  const {data:existing}=await sb.from('appointments').select('start_datetime,end_datetime').eq('barber_id',barber_id).neq('status','CANCELLED').gte('start_datetime',date+'T00:00:00').lte('start_datetime',date+'T23:59:59');
+  const {data:blocked}=await sb.from('blocked_slots').select('start_datetime,end_datetime').eq('barber_id',barber_id).gte('start_datetime',date+'T00:00:00').lte('start_datetime',date+'T23:59:59');
+  const busy=[...(existing||[]),...(blocked||[])].map(r=>({s:new Date(r.start_datetime),e:new Date(r.end_datetime)}));
+  const now=Date.now();const slots=[];
+  for(const av of avRows){
+    let cur=new Date(date+'T'+av.start_time);
+    const fin=new Date(date+'T'+av.end_time);
+    while(cur<fin){
+      const se=new Date(cur.getTime()+duration*60000);
+      if(se>fin)break;
+      if(cur.getTime()>now&&!busy.some(b=>cur<b.e&&se>b.s))slots.push({start:cur.toISOString(),end:se.toISOString(),label:cur.toTimeString().slice(0,5)});
+      cur=se;
+    }
+  }
+  return slots;
+}
+async function bkNext(){
+  const bk=ST.bk;
+  if(bk.step===1&&!bk.svc){toast('Scegli un servizio','er');return;}
+  if(bk.step===2&&!bk.bar){toast('Scegli un barbiere','er');return;}
+  if(bk.step===3&&!bk.date){toast('Scegli una data','er');return;}
+  if(bk.step===4&&!bk.slot){toast('Scegli un orario','er');return;}
+  if(bk.step===5){doBook();return;}
+  bk.step++;await renderBook();ge('bbody').scrollTop=0;
+}
+async function doBook(){
+  const bk=ST.bk;
+  bk.notes=ge('anotes')?.value||'';
+  const btn=ge('bnxt');btn.disabled=true;btn.textContent='Prenotazione...';
+  const {error}=await sb.from('appointments').insert({
+    client_id:ST.user.id,barber_id:bk.bar.id,service_id:bk.svc.id,
+    start_datetime:bk.slot.start,end_datetime:bk.slot.end,
+    status:'CONFIRMED',price_snapshot:bk.svc.price,notes:bk.notes
+  });
+  if(error){toast(error.message,'er');}
+  else{
+    toast('✅ Appuntamento confermato!');
+    localNotify('BarberOS ✂️','Appuntamento confermato per '+new Date(bk.slot.start).toLocaleDateString('it-IT',{day:'numeric',month:'long'})+' alle '+bk.slot.label);
+    resetBk();goNav(1);
+  }
+  btn.disabled=false;btn.textContent='Conferma Prenotazione';
+}
+
+// ═══════════════════════════════════════════════════════════
+// APPOINTMENTS
+// ═══════════════════════════════════════════════════════════
+async function renderApts(){
+  ge('apbody').innerHTML='<div class="ctr"><div class="spin"></div></div>';
+  let q=sb.from('appointments').select('*, services(name,price,duration_minutes), barbers(color_hex, profiles(first_name,last_name)), profiles!appointments_client_id_fkey(first_name,last_name,phone)').order('start_datetime',{ascending:true});
+  if(ST.profile.role==='CLIENT')q=q.eq('client_id',ST.user.id);
+  if(ST.profile.role==='BARBER')q=q.eq('barber_id',ST.barber.id);
+  const {data:apts}=await q;
+  const body=ge('apbody');body.innerHTML='';
+  const now=new Date();
+  const up=(apts||[]).filter(a=>new Date(a.start_datetime)>=now&&a.status!=='CANCELLED');
+  const past=(apts||[]).filter(a=>new Date(a.start_datetime)<now||a.status==='CANCELLED');
+  if(!up.length&&!past.length){
+    const em=ap(body,ce('div'));em.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;text-align:center;gap:10px';
+    ap(em,ce('div',null,'📅')).style.fontSize='48px';
+    ap(em,ce('div',null,'Nessun appuntamento')).style.cssText='font-size:18px;font-weight:600';
+    ap(em,ce('div',null,'Prenota il tuo primo taglio!')).style.cssText='font-size:14px;color:var(--mut)';
+    const btn=ap(em,ce('button','btn btnp'));btn.style.cssText='margin-top:12px;width:auto;padding:12px 24px';btn.textContent='Prenota ora →';btn.onclick=()=>goNav(0);
+    return;
+  }
+  if(up.length){mkSection(body,'In programma ('+up.length+')');up.forEach(a=>mkAptCard(body,a,a.status==='CONFIRMED'&&ST.profile.role==='CLIENT'));}
+  if(past.length){mkSection(body,'Storico');const gr=ap(body,ce('div'));gr.style.opacity='0.55';past.forEach(a=>mkAptCard(gr,a,false));}
+}
+function mkSection(parent,txt){const d=ap(parent,ce('div'));d.style.padding='14px 14px 6px';ap(d,ce('div','lbl',txt));}
+function mkAptCard(parent,a,canCancel){
+  const wrap=ap(parent,ce('div'));wrap.style.padding='0 12px 9px';
+  const card=ap(wrap,ce('div','apc'));
+  const col=a.barbers?.color_hex||'var(--gold)';
+  const acc=ap(card,ce('div','apac'));acc.style.background=col;
+  const dt=new Date(a.start_datetime);
+  const db=ap(card,ce('div','apdb'));db.style.color=col;
+  ap(db,ce('div','apdy',''+dt.getDate()));ap(db,ce('div','apmn',MONTHS[dt.getMonth()]));
+  const info=ap(card,ce('div'));info.style.flex='1';
+  ap(info,ce('div','apsv',a.services?.name||'—'));
+  const bfn=a.barbers?.profiles?.first_name||'';const bln=a.barbers?.profiles?.last_name||'';
+  const cfn=a.profiles?.first_name||'';const cln=a.profiles?.last_name||'';
+  const cname=ST.profile.role!=='CLIENT'?' · '+cfn+' '+cln:'';
+  ap(info,ce('div','apmeta',dt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+' · '+bfn+' '+bln+cname));
+  const bdg=ap(info,ce('span','badge '+(BMAP[a.status]||'bgp')));bdg.style.marginTop='6px';bdg.textContent=BLBL[a.status]||a.status;
+
+  // CALENDAR BUTTONS per appuntamenti confermati futuri
+  if(a.status==='CONFIRMED'&&new Date(a.start_datetime)>new Date()){
+    const calRow=ap(info,ce('div'));calRow.style.cssText='display:flex;gap:7px;margin-top:9px';
+    const bIcs=ap(calRow,ce('button','btn btnical btnsm'));bIcs.textContent='📅 Apple/Outlook';bIcs.onclick=()=>downloadICS(a);
+    const bGcal=ap(calRow,ce('button','btn btngcal btnsm'));bGcal.textContent='📅 Google';bGcal.onclick=()=>openGoogleCalendar(a);
+  }
+
+  if(canCancel){const btn=ap(info,ce('button','btn btnd btnsm'));btn.style.marginTop='9px';btn.textContent='Cancella';btn.onclick=()=>cancelApt(a.id);}
+  ap(card,ce('div','appr','€'+a.price_snapshot));
+}
+async function cancelApt(id){
+  if(!confirm('Cancellare questo appuntamento?'))return;
+  const {error}=await sb.from('appointments').update({status:'CANCELLED'}).eq('id',id);
+  if(error){toast(error.message,'er');return;}
+  toast('Appuntamento cancellato');renderApts();
+}
+
+// ═══════════════════════════════════════════════════════════
+// BARBER CALENDAR
+// ═══════════════════════════════════════════════════════════
+async function renderCal(){
+  const b=ST.barber;if(!b){ge('cgrid').innerHTML='<div style="padding:30px;text-align:center;color:var(--mut)">Profilo barbiere non trovato</div>';return;}
+  const today=new Date();today.setHours(0,0,0,0);
+  const ws=new Date(today);const off=today.getDay()===0?-6:1-today.getDay();ws.setDate(today.getDate()+off+ST.calOff*7);
+  const days=[0,1,2].map(i=>{const d=new Date(ws);d.setDate(ws.getDate()+i);return d;});
+  ge('cwlbl').textContent=days[0].getDate()+' '+MONTHS[days[0].getMonth()];
+  const DN=['Lu','Ma','Me','Gi','Ve','Sa','Do'];
+  const hdr=ge('cdhdr');hdr.innerHTML='';ap(hdr,ce('div'));
+  days.forEach(d=>{const isT=d.toDateString()===new Date().toDateString();ap(hdr,ce('div','cdlbl'+(isT?' td':''),DN[(d.getDay()+6)%7]+' '+d.getDate()));});
+  const dF=days[0].toISOString().split('T')[0],dT=days[2].toISOString().split('T')[0];
+  const {data:apts}=await sb.from('appointments').select('*, services(name), profiles!appointments_client_id_fkey(first_name,last_name)').eq('barber_id',b.id).neq('status','CANCELLED').gte('start_datetime',dF+'T00:00:00').lte('start_datetime',dT+'T23:59:59');
+  const grid=ge('cgrid');grid.innerHTML='';
+  const HOURS=[9,10,11,12,13,14,15,16,17,18];
+  HOURS.forEach(h=>{
+    ap(grid,ce('div','chrl',h+':00'));
+    days.forEach(d=>{
+      const ds=d.toISOString().split('T')[0];
+      const cell=ap(grid,ce('div','ccel'));
+      (apts||[]).filter(a=>a.start_datetime.startsWith(ds)&&new Date(a.start_datetime).getHours()===h).forEach(a=>{
+        const div=ap(cell,ce('div','capt'));div.style.background=b.color_hex+'22';div.style.borderLeft='3px solid '+b.color_hex;
+        ap(div,ce('div','captn',(a.profiles?.first_name||'?')+' '+(a.profiles?.last_name||'')));
+        ap(div,ce('div','capts',a.services?.name||'?'));
+        div.onclick=()=>showAptDetail(a);
+      });
+    });
+  });
+}
+function showAptDetail(a){
+  const mbody=ge('mbody');mbody.innerHTML='';
+  const d=new Date(a.start_datetime);
+  const rows=[
+    ['Cliente',(a.profiles?.first_name||'?')+' '+(a.profiles?.last_name||'')],
+    ['Servizio',a.services?.name||'?'],
+    ['Data',d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})],
+    ['Orario',d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})],
+    ['Prezzo','€'+a.price_snapshot],
+    ['Note',a.notes||'—']
+  ];
+  rows.forEach(([l,v],i)=>{const row=ap(mbody,ce('div','crow'));ap(row,ce('span','crlbl',l));const val=ap(row,ce('span','crval',v));if(i===2)val.style.textTransform='capitalize';});
+  const bdg=ap(mbody,ce('span','badge '+(BMAP[a.status]||'bgp')));bdg.style.marginTop='10px';bdg.textContent=BLBL[a.status]||a.status;
+  if(a.status==='CONFIRMED'){
+    const btns=ap(mbody,ce('div'));btns.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px';
+    const bc=ap(btns,ce('button','btn btnp btnsm'));bc.style.width='100%';bc.textContent='✓ Completato';bc.onclick=()=>setAptSt(a.id,'COMPLETED');
+    const bx=ap(btns,ce('button','btn btnd btnsm'));bx.style.width='100%';bx.textContent='✕ Cancella';bx.onclick=()=>setAptSt(a.id,'CANCELLED');
+  }
+  ge('mtit').textContent='Dettaglio';ge('modal').className='mover on';
+}
+async function setAptSt(id,st){
+  await sb.from('appointments').update({status:st}).eq('id',id);
+  closeModal();renderCal();toast(st==='COMPLETED'?'Completato!':'Cancellato');
+}
+
+// ═══════════════════════════════════════════════════════════
+// ADMIN
+// ═══════════════════════════════════════════════════════════
+function aTab(idx){ST.aTab=idx;for(let i=0;i<4;i++)ge('at'+i).className='htab'+(i===idx?' on':'');renderAdmin();}
+async function renderAdmin(){
+  const body=ge('admbody');body.innerHTML='<div class="ctr"><div class="spin"></div></div>';
+  if(ST.aTab===0)await rAdmStats(body);
+  if(ST.aTab===1)await rAdmApts(body);
+  if(ST.aTab===2)await rAdmBarbers(body);
+  if(ST.aTab===3)await rAdmServices(body);
+}
+async function rAdmStats(body){
+  const [{count:total},{count:today},{data:rev},{count:clients}]=await Promise.all([
+    sb.from('appointments').select('*',{count:'exact',head:true}).neq('status','CANCELLED'),
+    sb.from('appointments').select('*',{count:'exact',head:true}).neq('status','CANCELLED').gte('start_datetime',new Date().toISOString().split('T')[0]),
+    sb.from('appointments').select('price_snapshot').eq('status','COMPLETED'),
+    sb.from('profiles').select('*',{count:'exact',head:true}).eq('role','CLIENT')
+  ]);
+  const revenue=(rev||[]).reduce((s,r)=>s+parseFloat(r.price_snapshot),0);
+  body.innerHTML='';
+  const grid=ap(body,ce('div','stgrid'));
+  [['Appuntamenti',total||0,'totali',''],['Incassi','€'+(revenue.toFixed(0)),'completati','g'],['Oggi',today||0,'appuntamenti','b'],['Clienti',clients||0,'registrati','r']].forEach(([l,v,s,c])=>{
+    const card=ap(grid,ce('div','stcard '+c));ap(card,ce('div','stlbl',l));ap(card,ce('div','stval',''+v));ap(card,ce('div','stsub',s));
+  });
+  const {data:byStatus}=await sb.from('appointments').select('status');
+  const pad=ap(body,ce('div'));pad.style.padding='0 14px 14px';
+  const card=ap(pad,ce('div','card'));ap(card,ce('div','lbl','Distribuzione stato')).style.marginBottom='10px';
+  const tot=Math.max((byStatus||[]).length,1);
+  [{k:'CONFIRMED',l:'Confermati',c:'var(--grn)'},{k:'COMPLETED',l:'Completati',c:'var(--blu)'},{k:'CANCELLED',l:'Cancellati',c:'var(--red)'}].forEach(({k,l,c})=>{
+    const n=(byStatus||[]).filter(r=>r.status===k).length;
+    const row=ap(card,ce('div'));row.style.marginBottom='10px';
+    const rh=ap(row,ce('div'));rh.style.cssText='display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px';
+    const lb=ap(rh,ce('span',null,l));lb.style.color='var(--mut)';const nEl=ap(rh,ce('span',null,''+n));nEl.style.color=c;
+    const bar=ap(row,ce('div'));bar.style.cssText='height:6px;background:var(--bdr);border-radius:3px;overflow:hidden';
+    const fill=ap(bar,ce('div'));fill.style.cssText='height:100%;border-radius:3px;background:'+c+';width:'+Math.round(n/tot*100)+'%';
+  });
+}
+async function rAdmApts(body){
+  const {data:apts}=await sb.from('appointments').select('*, services(name), barbers(color_hex,profiles(first_name,last_name)), profiles!appointments_client_id_fkey(first_name,last_name)').order('start_datetime',{ascending:false}).limit(30);
+  body.innerHTML='';const pad=ap(body,ce('div'));pad.style.padding='12px';
+  if(!apts?.length){const em=ap(pad,ce('div'));em.style.cssText='text-align:center;padding:40px';ap(em,ce('div',null,'Nessuna prenotazione'));return;}
+  apts.forEach(a=>{
+    const d=new Date(a.start_datetime);
+    const card=ap(pad,ce('div','card'));card.style.cssText='margin-bottom:9px;border-left:3px solid '+(a.barbers?.color_hex||'var(--gold)');
+    const row=ap(card,ce('div'));row.style.cssText='display:flex;justify-content:space-between;align-items:flex-start';
+    const left=ap(row,ce('div'));
+    ap(left,ce('div',null,(a.profiles?.first_name||'?')+' '+(a.profiles?.last_name||''))).style.fontWeight='600';
+    ap(left,ce('div',null,(a.services?.name||'?')+' · '+(a.barbers?.profiles?.first_name||'?'))).style.cssText='font-size:12px;color:var(--mut)';
+    ap(left,ce('div',null,d.getDate()+' '+MONTHS[d.getMonth()]+' · '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))).style.cssText='font-size:12px;color:var(--mut)';
+    const right=ap(row,ce('div'));right.style.textAlign='right';
+    ap(right,ce('div',null,'€'+a.price_snapshot)).style.cssText='font-family:Georgia,serif;font-size:20px;color:var(--gold)';
+    const bdg=ap(right,ce('span','badge '+(BMAP[a.status]||'bgp')));bdg.textContent=BLBL[a.status]||a.status;
+  });
+}
+async function rAdmBarbers(body){
+  const {data:bars}=await sb.from('barbers').select('*, profiles(first_name,last_name,email)');
+  body.innerHTML='';const pad=ap(body,ce('div'));pad.style.padding='12px';
+  (bars||[]).forEach(b=>{
+    const fn=b.profiles?.first_name||'',ln=b.profiles?.last_name||'';
+    const card=ap(pad,ce('div','card'));card.style.cssText='margin-bottom:9px;display:flex;align-items:center;gap:13px';
+    const av=ap(card,ce('div'));av.style.cssText='width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:'+b.color_hex+'22;border:2px solid '+b.color_hex;av.textContent='✂️';
+    const info=ap(card,ce('div'));info.style.flex='1';
+    ap(info,ce('div',null,fn+' '+ln)).style.fontWeight='600';
+    ap(info,ce('div',null,b.profiles?.email||'')).style.cssText='font-size:12px;color:var(--mut)';
+    const bdg=ap(info,ce('span','badge '+(b.is_accepting?'bgc':'bgx')));bdg.style.marginTop='5px';bdg.textContent=b.is_accepting?'Attivo':'Pausa';
+  });
+  const btn=ap(pad,ce('button','btn btng'));btn.style.marginTop='4px';btn.textContent='+ Aggiungi Barbiere';btn.onclick=mAddBarber;
+}
+async function rAdmServices(body){
+  const {data:svcs}=await sb.from('services').select('*').eq('is_active',true).order('sort_order');
+  body.innerHTML='';const pad=ap(body,ce('div'));pad.style.padding='12px';
+  (svcs||[]).forEach(sv=>{
+    const card=ap(pad,ce('div','card'));card.style.marginBottom='9px';
+    const row=ap(card,ce('div'));row.style.cssText='display:flex;justify-content:space-between;align-items:flex-start';
+    const left=ap(row,ce('div'));ap(left,ce('div',null,sv.name)).style.fontWeight='600';
+    if(sv.description)ap(left,ce('div',null,sv.description)).style.cssText='font-size:12px;color:var(--mut)';
+    ap(left,ce('div',null,'⏱ '+sv.duration_minutes+' min')).style.cssText='font-size:11px;color:var(--mut);margin-top:3px;font-family:monospace';
+    ap(row,ce('div',null,'€'+sv.price)).style.cssText='font-family:Georgia,serif;font-size:24px;color:var(--gold)';
+  });
+  const btn=ap(pad,ce('button','btn btng'));btn.style.marginTop='4px';btn.textContent='+ Aggiungi Servizio';btn.onclick=mAddSvc;
+}
+
+// ── Admin Modals ─────────────────────────────────────────────
+function mAddBarber(){
+  const body=openModal('Nuovo Barbiere');
+  const wrap=ap(body,ce('div'));wrap.style.cssText='display:flex;flex-direction:column;gap:11px';
+  const r=ap(wrap,ce('div','gr2'));
+  const d1=ap(r,ce('div'));ap(d1,ce('label','lbl','Nome'));const fn=ap(d1,ce('input','inp'));fn.id='nbfn';fn.placeholder='Mario';
+  const d2=ap(r,ce('div'));ap(d2,ce('label','lbl','Cognome'));const ln=ap(d2,ce('input','inp'));ln.id='nbln';ln.placeholder='Rossi';
+  ap(wrap,ce('label','lbl','Email'));const em=ap(wrap,ce('input','inp'));em.id='nbem';em.type='email';em.placeholder='mario@barberos.it';
+  ap(wrap,ce('label','lbl','Password temporanea'));const pw=ap(wrap,ce('input','inp'));pw.id='nbpw';pw.type='password';pw.value='BarberOS2024!';
+  ap(wrap,ce('label','lbl','Bio'));const bio=ap(wrap,ce('textarea','inp'));bio.id='nbbio';bio.rows=2;bio.style.resize='none';bio.placeholder='Presentazione...';
+  const cols=['#c9a84c','#4caf78','#5c8fe0','#e05c5c','#b478dc'];
+  ap(wrap,ce('label','lbl','Colore'));
+  const cr=ap(wrap,ce('div'));cr.style.cssText='display:flex;gap:8px';
+  wrap._col=cols[0];
+  cols.forEach((c,i)=>{const b=ap(cr,ce('button'));b.id='col'+i;b.style.cssText='width:32px;height:32px;border-radius:50%;background:'+c+';border:none;cursor:pointer';
+    if(i===0){b.style.outline='3px solid '+c;b.style.outlineOffset='3px';}
+    b.onclick=()=>{wrap._col=c;cols.forEach((_,j)=>{const bj=ge('col'+j);if(bj){bj.style.outline='none';}});b.style.outline='3px solid '+c;b.style.outlineOffset='3px';};
+  });
+  const btn=ap(wrap,ce('button','btn btnp'));btn.textContent='Crea Barbiere';btn.onclick=()=>doAddBarber(wrap);
+}
+async function doAddBarber(wrap){
+  const fn=(ge('nbfn').value||'').trim(),ln=(ge('nbln').value||'').trim(),em=(ge('nbem').value||'').trim(),pw=(ge('nbpw').value||'').trim(),bio=(ge('nbbio').value||'').trim(),col=wrap._col||'#c9a84c';
+  if(!fn||!ln||!em||!pw){toast('Compila tutti i campi','er');return;}
+  const {data:d2,error:e2}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln,role:'BARBER'}}});
+  if(e2){toast(e2.message,'er');return;}
+  if(d2?.user){
+    await sb.from('barbers').insert({user_id:d2.user.id,bio,color_hex:col});
+    for(let d=1;d<=6;d++) await sb.from('availability').insert({barber_id:(await sb.from('barbers').select('id').eq('user_id',d2.user.id).single()).data?.id,day_of_week:d,start_time:'09:00',end_time:'19:00'});
+    closeModal();toast('Barbiere creato! Controlla email per conferma.');renderAdmin();
+  }
+}
+function mAddSvc(){
+  const body=openModal('Nuovo Servizio');
+  const wrap=ap(body,ce('div'));wrap.style.cssText='display:flex;flex-direction:column;gap:11px';
+  ap(wrap,ce('label','lbl','Nome'));const nm=ap(wrap,ce('input','inp'));nm.id='nsnm';nm.placeholder='es. Taglio Fade';
+  ap(wrap,ce('label','lbl','Descrizione'));const ds=ap(wrap,ce('input','inp'));ds.id='nsds';ds.placeholder='Breve descrizione...';
+  const r=ap(wrap,ce('div','gr2'));
+  const p1=ap(r,ce('div'));ap(p1,ce('label','lbl','Prezzo €'));const pr=ap(p1,ce('input','inp'));pr.id='nspr';pr.type='number';pr.min='0';pr.placeholder='20';
+  const d1=ap(r,ce('div'));ap(d1,ce('label','lbl','Durata'));const sel=ap(d1,ce('select','inp'));sel.id='nsdu';
+  [15,20,30,45,60,75,90].forEach(m=>{const o=ce('option',null,m+' min');o.value=m;ap(sel,o);});
+  const btn=ap(wrap,ce('button','btn btnp'));btn.textContent='Crea Servizio';btn.onclick=doAddSvc;
+}
+async function doAddSvc(){
+  const name=(ge('nsnm').value||'').trim(),desc=(ge('nsds').value||'').trim(),price=parseFloat(ge('nspr').value||'0'),dur=parseInt(ge('nsdu').value||'30');
+  if(!name||!price){toast('Nome e prezzo obbligatori','er');return;}
+  const {error}=await sb.from('services').insert({name,description:desc,price,duration_minutes:dur,sort_order:99});
+  if(error){toast(error.message,'er');return;}
+  closeModal();toast('Servizio creato!');renderAdmin();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════════════
+async function renderProfile(){
+  const p=ST.profile,body=ge('probody');body.innerHTML='';
+  const rc={CLIENT:'var(--blu)',BARBER:'var(--grn)',ADMIN:'var(--gold)'}[p.role]||'var(--gold)';
+  const rl={CLIENT:'Cliente',BARBER:'Barbiere',ADMIN:'Amministratore'}[p.role]||p.role;
+  const hero=ap(body,ce('div'));hero.style.cssText='padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:11px;border-bottom:1px solid var(--bdr)';
+  const av=ap(hero,ce('div'));av.style.cssText='width:72px;height:72px;border-radius:50%;background:var(--gdim);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:32px';av.textContent='👤';
+  const info=ap(hero,ce('div'));info.style.textAlign='center';
+  ap(info,ce('div',null,p.first_name+' '+p.last_name)).style.cssText='font-family:Georgia,serif;font-size:24px;letter-spacing:2px;font-weight:700';
+  ap(info,ce('div',null,ST.user.email)).style.cssText='font-size:13px;color:var(--mut)';
+  const bdg=ap(info,ce('span','badge'));bdg.style.cssText='margin-top:7px;background:'+rc+'22;color:'+rc+';border:1px solid '+rc+'44';bdg.textContent=rl;
+  const pad=ap(body,ce('div'));pad.style.padding='14px';
+  const card=ap(pad,ce('div','card'));card.style.marginBottom='11px';
+  [['Nome',p.first_name+' '+p.last_name],['Email',ST.user.email],['Telefono',p.phone||'—']].forEach(([l,v])=>{const row=ap(card,ce('div','crow'));ap(row,ce('span','crlbl',l));ap(row,ce('span','crval',v));});
+
+  // Notifiche toggle
+  const notifCard=ap(pad,ce('div','card'));notifCard.style.cssText='margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;gap:12px';
+  const nl=ap(notifCard,ce('div'));ap(nl,ce('div',null,'🔔 Notifiche push')).style.cssText='font-weight:600;font-size:14px';
+  const nst=Notification.permission==='granted'?'Attive':'Non attive';
+  ap(nl,ce('div',null,nst)).style.cssText='font-size:12px;color:'+(Notification.permission==='granted'?'var(--grn)':'var(--mut)');
+  if(Notification.permission!=='granted'){const nb=ap(notifCard,ce('button','btn btnp btnsm'));nb.textContent='Attiva';nb.onclick=requestPushPermission;}
+
+  if(p.role==='CLIENT'){
+    const {count:n}=await sb.from('appointments').select('*',{count:'exact',head:true}).eq('client_id',ST.user.id);
+    const {data:rd}=await sb.from('appointments').select('price_snapshot').eq('client_id',ST.user.id).eq('status','COMPLETED');
+    const spent=(rd||[]).reduce((s,r)=>s+parseFloat(r.price_snapshot),0);
+    const sc=ap(pad,ce('div','card'));sc.style.cssText='margin-bottom:11px;background:rgba(201,168,76,.06);border-color:rgba(201,168,76,.2)';
+    ap(sc,ce('div','lbl','Le tue statistiche')).style.cssText='margin-bottom:9px;color:var(--gold)';
+    const sg=ap(sc,ce('div'));sg.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:12px';
+    const s1=ap(sg,ce('div'));ap(s1,ce('div',null,''+(n||0))).style.cssText='font-family:Georgia,serif;font-size:28px;font-weight:700;color:var(--gold)';ap(s1,ce('div',null,'prenotazioni')).style.cssText='font-size:11px;color:var(--mut)';
+    const s2=ap(sg,ce('div'));ap(s2,ce('div',null,'€'+spent.toFixed(0))).style.cssText='font-family:Georgia,serif;font-size:28px;font-weight:700;color:var(--grn)';ap(s2,ce('div',null,'spesi')).style.cssText='font-size:11px;color:var(--mut)';
+  }
+  const btn=ap(pad,ce('button','btn btnd'));btn.textContent="Esci dall'Account";btn.onclick=doLogout;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════
+function openModal(title){ge('mtit').textContent=title;ge('mbody').innerHTML='';ge('modal').className='mover on';return ge('mbody');}
+function closeModal(){ge('modal').className='mover';}
+ge('modal').onclick=e=>{if(e.target===ge('modal'))closeModal();};
+
+// ═══════════════════════════════════════════════════════════
+// PWA INSTALL
+// ═══════════════════════════════════════════════════════════
+let _deferredInstall;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_deferredInstall=e;ge('install-banner').classList.add('show');});
+ge('btn-install').onclick=async()=>{if(!_deferredInstall)return;_deferredInstall.prompt();const{outcome}=await _deferredInstall.userChoice;if(outcome==='accepted')ge('install-banner').classList.remove('show');};
+ge('btn-notif').onclick=requestPushPermission;
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+async function init(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session?.user){await loadProfile(session.user);if(ST.profile){afterLogin();return;}}
+  showScreen('sa');
+}
+sb.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT')showScreen('sa');});
+ge('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+ge('cprev').onclick=()=>{ST.calOff--;renderCal();};
+ge('cnext').onclick=()=>{ST.calOff++;renderCal();};
+init();
+</script>
+</body>
+</html>
