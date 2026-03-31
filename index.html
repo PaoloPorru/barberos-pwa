@@ -74,12 +74,16 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
 .banner.show{display:flex;}
 /* AUTH */
 #sa{justify-content:flex-end;}
-.ahero{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px 20px;position:relative;overflow:hidden;}
-.aglow{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(201,168,76,.09) 0%,transparent 70%);pointer-events:none;}
-.alogo{font-family:Georgia,serif;font-size:68px;letter-spacing:6px;line-height:1;text-align:center;z-index:1;font-weight:700;}
+.ahero{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(12px,4vw,28px) clamp(10px,4vw,24px) 10px;position:relative;overflow:hidden;}
+.aglow{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);width:min(280px,88vw);height:min(280px,88vw);background:radial-gradient(circle,rgba(201,168,76,.09) 0%,transparent 70%);pointer-events:none;}
+.alogo{font-family:Georgia,serif;font-size:clamp(30px,10.5vw,68px);letter-spacing:clamp(1px,1.4vw,6px);line-height:1;text-align:center;z-index:1;font-weight:700;max-width:100%;padding:0 clamp(6px,3vw,16px);box-sizing:border-box;word-break:break-word;}
 .alogo em{color:var(--gold);font-style:normal;}
-.atag{color:var(--mut);font-size:14px;text-align:center;margin-top:8px;z-index:1;}
-.apanel{background:var(--surf);border-top:1px solid var(--bdr);border-radius:24px 24px 0 0;padding:24px 20px 36px;overflow-y:auto;max-height:73dvh;min-height:0;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+.atag{color:var(--mut);font-size:clamp(12px,3.4vw,14px);text-align:center;margin-top:6px;z-index:1;max-width:min(22em,92vw);padding:0 8px;line-height:1.35;}
+.apanel{background:var(--surf);border-top:1px solid var(--bdr);border-radius:24px 24px 0 0;padding:20px clamp(16px,5vw,20px) max(28px,var(--safe-b));overflow-y:auto;max-height:min(78dvh,calc(100dvh - 120px));min-height:0;-webkit-overflow-scrolling:touch;touch-action:pan-y;transition:box-shadow .12s;}
+.apanel.ptr-armed{box-shadow:inset 0 3px 0 0 var(--gold);}
+.ptr-hint{font-size:10px;color:var(--mut);text-align:center;margin:0 0 12px;font-family:monospace;letter-spacing:.2px;opacity:.72;line-height:1.35;}
+.brand-load{font-family:Georgia,serif;font-weight:700;letter-spacing:clamp(2px,1vw,4px);font-size:clamp(28px,10vw,48px);text-align:center;line-height:1;max-width:100%;padding:0 12px;}
+.brand-load em{color:var(--gold);font-style:normal;}
 .atabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:18px;}
 .atab{flex:1;padding:9px;text-align:center;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;color:var(--mut);transition:all .18s;}
 .atab.on{background:var(--card);color:var(--cream);border:1px solid var(--bdr);}
@@ -168,8 +172,8 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
 
   <!-- LOADING -->
   <div class="scr on" id="sload">
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px">
-      <div style="font-family:Georgia,serif;font-size:48px;font-weight:700;letter-spacing:4px">BARBER<em style="color:var(--gold);font-style:normal">OS</em></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;min-height:0;padding:16px">
+      <div class="brand-load">BARBER<em>OS</em></div>
       <div class="spin"></div>
     </div>
   </div>
@@ -181,7 +185,8 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
       <div class="alogo">BARBER<em>OS</em></div>
       <p class="atag">Il tuo salone, sempre con te</p>
     </div>
-    <div class="apanel">
+    <div class="apanel" id="apanel">
+      <p class="ptr-hint">↻ Trascina in basso da qui per ricaricare</p>
       <div class="atabs">
         <div class="atab on" id="ta-l" onclick="authTab('l')">Accedi</div>
         <div class="atab"    id="ta-r" onclick="authTab('r')">Registrati</div>
@@ -200,9 +205,6 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
         <div class="fg"><label class="lbl">Telefono</label><input class="inp" id="rph" type="tel" placeholder="+39 333 1234567" autocomplete="tel"/></div>
         <div class="fg"><label class="lbl">Password</label><input class="inp" id="rpw" type="password" placeholder="min 8 caratteri" autocomplete="new-password"/></div>
         <button class="btn btnp" id="btnr" onclick="doReg()">Crea Account →</button>
-      </div>
-      <div style="text-align:center;margin-top:20px;padding-top:4px;border-top:1px solid var(--bdr)">
-        <button type="button" class="btn btng btnsm" onclick="location.reload()" style="width:auto">↻ Ricarica pagina</button>
       </div>
     </div>
   </div>
@@ -477,8 +479,12 @@ async function doReg(){
   if(!fn||!ln||!em||!pw){toast('Compila tutti i campi','er');return;}
   if(pw.length<8){toast('Password di almeno 8 caratteri','er');return;}
   const btn=ge('btnr'); btn.disabled=true; btn.textContent='Creazione...';
-  const {data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln,phone:ph,role:'CLIENT'}}});
-  if(error){toast(error.message,'er');}
+  const {data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln,...(ph?{phone:ph}:{})}}});
+  if(error){
+    const raw=(error.message||'')+(error.status||'');
+    const isSrv=error.status===500||/500|unexpected|server|Internal/i.test(raw);
+    toast(isSrv?'Registrazione non riuscita (errore server Supabase). Apri il file supabase_fix_signup.sql nel progetto ed eseguilo in SQL Editor; controlla anche Auth → SMTP.':error.message,'er');
+  }
   else if(data.user){await loadProfile(data.user);afterLogin();toast('Benvenuto, '+fn+'!');}
   btn.disabled=false; btn.textContent='Crea Account →';
 }
@@ -955,7 +961,7 @@ async function renderProfile(){
     const s1=ap(sg,ce('div'));ap(s1,ce('div',null,''+(n||0))).style.cssText='font-family:Georgia,serif;font-size:28px;font-weight:700;color:var(--gold)';ap(s1,ce('div',null,'prenotazioni')).style.cssText='font-size:11px;color:var(--mut)';
     const s2=ap(sg,ce('div'));ap(s2,ce('div',null,'€'+spent.toFixed(0))).style.cssText='font-family:Georgia,serif;font-size:28px;font-weight:700;color:var(--grn)';ap(s2,ce('div',null,'spesi')).style.cssText='font-size:11px;color:var(--mut)';
   }
-  const rel=ap(pad,ce('button','btn btng'));rel.style.marginBottom='11px';rel.textContent='↻ Ricarica pagina';rel.onclick=()=>location.reload();
+  ap(pad,ce('p','ptr-hint')).textContent='↻ Trascina in basso per ricaricare';
   const btn=ap(pad,ce('button','btn btnd'));btn.textContent="Esci dall'Account";btn.onclick=doLogout;
 }
 
@@ -975,6 +981,31 @@ ge('btn-install').onclick=async()=>{if(!_deferredInstall)return;_deferredInstall
 ge('btn-notif').onclick=requestPushPermission;
 
 // ═══════════════════════════════════════════════════════════
+// PULL TO REFRESH (pannelli scrollabili)
+// ═══════════════════════════════════════════════════════════
+function attachPullToRefresh(el){
+  if(!el||el.dataset.ptr)return;
+  el.dataset.ptr='1';
+  let sy=0,pull=0;
+  el.addEventListener('touchstart',e=>{
+    if(el.scrollTop>0)return;
+    sy=e.touches[0].clientY;
+    pull=0;
+  },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    if(sy===0||el.scrollTop>0)return;
+    pull=Math.max(0,e.touches[0].clientY-sy);
+    if(pull>20)el.classList.add('ptr-armed');
+    else el.classList.remove('ptr-armed');
+  },{passive:true});
+  el.addEventListener('touchend',()=>{
+    el.classList.remove('ptr-armed');
+    if(pull>64&&el.scrollTop<=0)location.reload();
+    sy=0;pull=0;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
 async function init(){
@@ -986,6 +1017,8 @@ sb.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){document.documentEl
 ge('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 ge('cprev').onclick=()=>{ST.calOff--;renderCal();};
 ge('cnext').onclick=()=>{ST.calOff++;renderCal();};
+attachPullToRefresh(ge('apanel'));
+attachPullToRefresh(ge('probody'));
 init();
 </script>
 </body>
