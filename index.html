@@ -13,9 +13,9 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--cream);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;}
 #shell{height:100dvh;max-height:100dvh;width:100%;max-width:min(430px,100%);margin:0 auto;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;position:relative;padding-left:var(--safe-l);padding-right:var(--safe-r);}
-.scr{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .2s;}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .2s;min-height:0;overflow:hidden;}
 .scr.on{opacity:1;pointer-events:all;}
-.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:14px;overscroll-behavior-y:contain;}
+.scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:14px;overscroll-behavior-y:auto;touch-action:pan-y;}
 .scroll::-webkit-scrollbar{display:none;}
 .tb{display:flex;align-items:center;justify-content:space-between;padding:14px clamp(12px,4vw,18px) 12px;border-bottom:1px solid var(--bdr);flex-shrink:0;gap:8px;min-width:0;}
 .logo{font-family:Georgia,serif;font-size:clamp(17px,4.8vw,22px);letter-spacing:clamp(1px,0.6vw,3px);font-weight:700;flex-shrink:0;}
@@ -70,16 +70,16 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
 #toast.ok{border-color:rgba(76,175,120,.4);color:var(--grn);}
 #toast.er{border-color:rgba(224,92,92,.4);color:var(--red);}
 /* BANNERS */
-.banner{display:none;align-items:center;gap:12px;margin:10px 14px 0;padding:12px 14px;border-radius:10px;background:var(--gdim);border:1px solid rgba(201,168,76,.3);}
+.banner{display:none;align-items:center;gap:12px;margin:10px 14px 0;padding:12px 14px;border-radius:10px;background:var(--gdim);border:1px solid rgba(201,168,76,.3);flex-shrink:0;}
 .banner.show{display:flex;}
 /* AUTH */
 #sa{justify-content:flex-end;}
-.ahero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px 20px;position:relative;overflow:hidden;}
+.ahero{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px 20px;position:relative;overflow:hidden;}
 .aglow{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(201,168,76,.09) 0%,transparent 70%);pointer-events:none;}
 .alogo{font-family:Georgia,serif;font-size:68px;letter-spacing:6px;line-height:1;text-align:center;z-index:1;font-weight:700;}
 .alogo em{color:var(--gold);font-style:normal;}
 .atag{color:var(--mut);font-size:14px;text-align:center;margin-top:8px;z-index:1;}
-.apanel{background:var(--surf);border-top:1px solid var(--bdr);border-radius:24px 24px 0 0;padding:24px 20px 36px;overflow-y:auto;max-height:73dvh;}
+.apanel{background:var(--surf);border-top:1px solid var(--bdr);border-radius:24px 24px 0 0;padding:24px 20px 36px;overflow-y:auto;max-height:73dvh;min-height:0;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
 .atabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:18px;}
 .atab{flex:1;padding:9px;text-align:center;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;color:var(--mut);transition:all .18s;}
 .atab.on{background:var(--card);color:var(--cream);border:1px solid var(--bdr);}
@@ -151,7 +151,7 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
 .stsub{font-size:11px;color:var(--mut);margin-top:2px;}
 .mover{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:flex-end;opacity:0;transition:opacity .2s;pointer-events:none;}
 .mover.on{opacity:1;pointer-events:all;}
-.msheet{width:100%;max-width:min(430px,100%);margin:0 auto;background:var(--surf);border-radius:20px 20px 0 0;border-top:1px solid var(--bdr);padding:8px 0 var(--safe-b);transform:translateY(100%);transition:transform .25s cubic-bezier(.32,.72,0,1);max-height:85dvh;overflow-y:auto;}
+.msheet{width:100%;max-width:min(430px,100%);margin:0 auto;background:var(--surf);border-radius:20px 20px 0 0;border-top:1px solid var(--bdr);padding:8px 0 var(--safe-b);transform:translateY(100%);transition:transform .25s cubic-bezier(.32,.72,0,1);max-height:85dvh;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
 .mover.on .msheet{transform:translateY(0);}
 .mhnd{width:36px;height:4px;background:var(--bdr);border-radius:2px;margin:0 auto 14px;}
 .mtit{font-size:22px;letter-spacing:2px;padding:0 20px 14px;font-weight:700;font-family:Georgia,serif;}
@@ -159,7 +159,7 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
 /* CALENDAR BUTTONS */
 .cal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
 /* NOTIFICATION PERMISSION */
-.notif-banner{background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.25);border-radius:10px;padding:14px;margin:12px 14px 0;display:none;}
+.notif-banner{background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.25);border-radius:10px;padding:14px;margin:12px 14px 0;display:none;flex-shrink:0;}
 .notif-banner.show{display:block;}
 </style>
 </head>
@@ -200,6 +200,9 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
         <div class="fg"><label class="lbl">Telefono</label><input class="inp" id="rph" type="tel" placeholder="+39 333 1234567" autocomplete="tel"/></div>
         <div class="fg"><label class="lbl">Password</label><input class="inp" id="rpw" type="password" placeholder="min 8 caratteri" autocomplete="new-password"/></div>
         <button class="btn btnp" id="btnr" onclick="doReg()">Crea Account →</button>
+      </div>
+      <div style="text-align:center;margin-top:20px;padding-top:4px;border-top:1px solid var(--bdr)">
+        <button type="button" class="btn btng btnsm" onclick="location.reload()" style="width:auto">↻ Ricarica pagina</button>
       </div>
     </div>
   </div>
@@ -952,6 +955,7 @@ async function renderProfile(){
     const s1=ap(sg,ce('div'));ap(s1,ce('div',null,''+(n||0))).style.cssText='font-family:Georgia,serif;font-size:28px;font-weight:700;color:var(--gold)';ap(s1,ce('div',null,'prenotazioni')).style.cssText='font-size:11px;color:var(--mut)';
     const s2=ap(sg,ce('div'));ap(s2,ce('div',null,'€'+spent.toFixed(0))).style.cssText='font-family:Georgia,serif;font-size:28px;font-weight:700;color:var(--grn)';ap(s2,ce('div',null,'spesi')).style.cssText='font-size:11px;color:var(--mut)';
   }
+  const rel=ap(pad,ce('button','btn btng'));rel.style.marginBottom='11px';rel.textContent='↻ Ricarica pagina';rel.onclick=()=>location.reload();
   const btn=ap(pad,ce('button','btn btnd'));btn.textContent="Esci dall'Account";btn.onclick=doLogout;
 }
 
