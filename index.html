@@ -289,7 +289,8 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + clamp(10px,2.
     <div class="htabs" id="bdtabs">
       <div class="htab on" id="bt0" onclick="bTab(0)">💈 Servizi</div>
       <div class="htab" id="bt1" onclick="bTab(1)">✂️ Team</div>
-      <div class="htab" id="bt2" onclick="bTab(2)">➕ Walk-in</div>
+      <div class="htab" id="bt2" onclick="bTab(2)">🕐 Orari</div>
+      <div class="htab" id="bt3" onclick="bTab(3)">➕ Walk-in</div>
     </div>
     <div class="scroll" id="bdbody"></div>
   </div>
@@ -834,11 +835,28 @@ function renderStepConfirm(body,bk){
   const info=ap(pad,ce('div','card'));info.style.cssText='margin-top:11px;background:rgba(201,168,76,.05);border-color:rgba(201,168,76,.2)';
   const p=ap(info,ce('p'));p.style.cssText='font-size:11px;color:var(--gold);font-family:monospace';p.textContent='✉️ Riceverai email di conferma + promemoria 24h prima';
 }
-function padTimeHMS(t){
-  const s=String(t||'09:00:00').trim();
-  if(s.length>=8)return s.slice(0,8);
-  if(s.length===5)return s+':00';
-  return s+':00:00'.slice(0,8);
+function normalizeTimeHMS(t){
+  if(t==null||t==='')return'09:00:00';
+  const s=String(t).trim();
+  const m=s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(m){
+    const h=String(Math.min(23,parseInt(m[1],10))).padStart(2,'0');
+    const min=String(Math.min(59,parseInt(m[2],10))).padStart(2,'0');
+    const sec=m[3]?String(Math.min(59,parseInt(m[3],10))).padStart(2,'0'):'00';
+    return h+':'+min+':'+sec;
+  }
+  const pad=String(t||'09:00:00').trim();
+  if(pad.length>=8)return pad.slice(0,8);
+  if(pad.length===5)return pad+':00';
+  return(pad+':00:00').slice(0,8);
+}
+function localDayUtcRange(ymd){
+  const d=parseLocalYMD(ymd);
+  if(!d||Number.isNaN(d.getTime()))return null;
+  const y=d.getFullYear(),mo=d.getMonth(),day=d.getDate();
+  const start=new Date(y,mo,day,0,0,0,0);
+  const end=new Date(y,mo,day,23,59,59,999);
+  return{startISO:start.toISOString(),endISO:end.toISOString()};
 }
 async function calcSlots(barber_id,date,duration){
   const d=parseLocalYMD(date);
@@ -846,15 +864,18 @@ async function calcSlots(barber_id,date,duration){
   const dow=d.getDay();
   const {data:avRows}=await sb.from('availability').select('start_time,end_time').eq('barber_id',barber_id).eq('day_of_week',dow).eq('is_active',true);
   if(!avRows?.length)return[];
-  const {data:existing}=await sb.from('appointments').select('start_datetime,end_datetime').eq('barber_id',barber_id).neq('status','CANCELLED').gte('start_datetime',date+'T00:00:00').lte('start_datetime',date+'T23:59:59');
-  const {data:blocked}=await sb.from('blocked_slots').select('start_datetime,end_datetime').eq('barber_id',barber_id).gte('start_datetime',date+'T00:00:00').lte('start_datetime',date+'T23:59:59');
+  const range=localDayUtcRange(date);
+  if(!range)return[];
+  const {data:existing}=await sb.from('appointments').select('start_datetime,end_datetime').eq('barber_id',barber_id).neq('status','CANCELLED').gte('start_datetime',range.startISO).lte('start_datetime',range.endISO);
+  const {data:blocked}=await sb.from('blocked_slots').select('start_datetime,end_datetime').eq('barber_id',barber_id).gte('start_datetime',range.startISO).lte('start_datetime',range.endISO);
   const busy=[...(existing||[]),...(blocked||[])].map(r=>({s:new Date(r.start_datetime),e:new Date(r.end_datetime)}));
   const now=Date.now();const slots=[];
   const y=d.getFullYear(),mo=d.getMonth(),day=d.getDate();
   for(const av of avRows){
-    const st=padTimeHMS(av.start_time),en=padTimeHMS(av.end_time);
+    const st=normalizeTimeHMS(av.start_time),en=normalizeTimeHMS(av.end_time);
     let cur=new Date(y,mo,day,parseInt(st.slice(0,2),10),parseInt(st.slice(3,5),10),parseInt(st.slice(6,8)||'0',10),0);
     const fin=new Date(y,mo,day,parseInt(en.slice(0,2),10),parseInt(en.slice(3,5),10),parseInt(en.slice(6,8)||'0',10),0);
+    if(!(fin>cur))continue;
     while(cur<fin){
       const se=new Date(cur.getTime()+duration*60000);
       if(se>fin)break;
@@ -1223,12 +1244,13 @@ async function rAdmServices(body){
   const btn=ap(pad,ce('button','btn btng'));btn.style.marginTop='4px';btn.textContent='+ Aggiungi Servizio';btn.onclick=mAddSvc;
 }
 
-function bTab(idx){ST.bTab=idx;for(let i=0;i<3;i++){const el=ge('bt'+i);if(el)el.className='htab'+(i===idx?' on':'');}renderBarDesk();}
+function bTab(idx){ST.bTab=idx;for(let i=0;i<4;i++){const el=ge('bt'+i);if(el)el.className='htab'+(i===idx?' on':'');}renderBarDesk();}
 async function renderBarDesk(){
   const body=ge('bdbody');body.innerHTML='<div class="ctr"><div class="spin"></div></div>';
   if(ST.bTab===0)await rBdServices(body);
   if(ST.bTab===1)await rBdBarbersDesk(body);
-  if(ST.bTab===2)await rBdWalkIn(body);
+  if(ST.bTab===2)await rBdHours(body);
+  if(ST.bTab===3)await rBdWalkIn(body);
 }
 async function rBdServices(body){
   const {data:svcs}=await sb.from('services').select('*').eq('is_active',true).order('sort_order');
@@ -1302,6 +1324,49 @@ async function removeBarberRow(bid,userId){
   if(error){toast(error.message,'er');return;}
   await sb.from('profiles').update({role:'CLIENT'}).eq('id',userId);
   toast('Barbiere rimosso dal salone');renderBarDesk();
+}
+const AV_DAY_IT=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+function timeInputVal(v){
+  const s=(v==null?'':String(v)).trim();
+  const m=s.match(/(\d{1,2}):(\d{2})/);
+  if(!m)return'09:00';
+  const h=String(Math.min(23,parseInt(m[1],10))).padStart(2,'0');
+  const min=String(Math.min(59,parseInt(m[2],10))).padStart(2,'0');
+  return h+':'+min;
+}
+async function rBdHours(body){
+  const b=ST.barber;if(!b){body.innerHTML='<div style="padding:24px;text-align:center;color:var(--mut)">Profilo barbiere mancante</div>';return;}
+  body.innerHTML='';
+  const pad=ap(body,ce('div'));pad.style.padding='12px';
+  ap(pad,ce('p',null,'Giorni aperti e fascia oraria: i clienti vedono slot solo nei giorni attivi. Salva in basso.')).style.cssText='font-size:13px;color:var(--mut);margin-bottom:12px;line-height:1.4';
+  const {data:rows,error:er}=await sb.from('availability').select('*').eq('barber_id',b.id).order('day_of_week');
+  if(er){pad.textContent=er.message;pad.style.color='var(--red)';return;}
+  const map=new Map((rows||[]).map(r=>[r.day_of_week,r]));
+  const wrap=ap(pad,ce('div'));wrap.style.cssText='display:flex;flex-direction:column;gap:10px';
+  for(let dow=0;dow<=6;dow++){
+    const r=map.get(dow);
+    const card=ap(wrap,ce('div','card'));card.style.cssText='padding:12px';
+    ap(card,ce('div',null,AV_DAY_IT[dow])).style.cssText='font-weight:600;margin-bottom:8px';
+    const onRow=ap(card,ce('div'));onRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px';
+    const cb=ap(onRow,ce('input'));cb.type='checkbox';cb.id='avax'+dow;
+    cb.checked=r?!!r.is_active:(dow>=1&&dow<=6);
+    ap(onRow,ce('label',null,'Salone aperto')).htmlFor='avax'+dow;
+    const gr=ap(card,ce('div','gr2'));
+    const g1=ap(gr,ce('div'));ap(g1,ce('label','lbl','Inizio'));const t1=ap(g1,ce('input','inp'));t1.type='time';t1.id='avst'+dow;t1.value=timeInputVal(r?.start_time!=null?r.start_time:'09:00');
+    const g2=ap(gr,ce('div'));ap(g2,ce('label','lbl','Fine'));const t2=ap(g2,ce('input','inp'));t2.type='time';t2.id='aven'+dow;t2.value=timeInputVal(r?.end_time!=null?r.end_time:'19:00');
+  }
+  const btn=ap(pad,ce('button','btn btnp'));btn.style.marginTop='14px';btn.textContent='Salva orari';
+  btn.onclick=async()=>{
+    const payload=[];
+    for(let dow=0;dow<=6;dow++){
+      const st=(ge('avst'+dow).value||'09:00')+':00';
+      const en=(ge('aven'+dow).value||'19:00')+':00';
+      payload.push({barber_id:b.id,day_of_week:dow,start_time:st,end_time:en,is_active:ge('avax'+dow).checked});
+    }
+    const {error:e2}=await sb.from('availability').upsert(payload,{onConflict:'barber_id,day_of_week'});
+    if(e2){toast(e2.message,'er');return;}
+    toast('Orari salvati');renderCal();renderBarDesk();
+  };
 }
 async function rBdWalkIn(body){
   const b=ST.barber;if(!b){body.innerHTML='<div style="padding:24px;text-align:center;color:var(--mut)">Profilo barbiere mancante</div>';return;}

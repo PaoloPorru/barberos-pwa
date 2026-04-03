@@ -237,9 +237,11 @@ ALTER TABLE availability ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "avail_select" ON availability;
 DROP POLICY IF EXISTS "avail_all" ON availability;
 CREATE POLICY "avail_select" ON availability FOR SELECT  USING (true);
+-- Qualsiasi BARBER può gestire gli orari di tutti i barbieri del salone (stesso schema senza salon_id).
 CREATE POLICY "avail_all"    ON availability FOR ALL     USING (
-  (SELECT user_id FROM barbers WHERE id = barber_id) = auth.uid()
-  OR get_my_role() = 'ADMIN'
+  get_my_role() IN ('ADMIN','BARBER')
+) WITH CHECK (
+  get_my_role() IN ('ADMIN','BARBER')
 );
 
 -- BLOCKED SLOTS
@@ -248,8 +250,9 @@ DROP POLICY IF EXISTS "blocked_select" ON blocked_slots;
 DROP POLICY IF EXISTS "blocked_all" ON blocked_slots;
 CREATE POLICY "blocked_select" ON blocked_slots FOR SELECT USING (true);
 CREATE POLICY "blocked_all"    ON blocked_slots FOR ALL    USING (
-  (SELECT user_id FROM barbers WHERE id = barber_id) = auth.uid()
-  OR get_my_role() = 'ADMIN'
+  get_my_role() IN ('ADMIN','BARBER')
+) WITH CHECK (
+  get_my_role() IN ('ADMIN','BARBER')
 );
 
 -- APPOINTMENTS
