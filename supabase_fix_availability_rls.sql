@@ -16,7 +16,7 @@ CREATE POLICY "blocked_all" ON blocked_slots FOR ALL USING (
 );
 
 INSERT INTO availability (barber_id, day_of_week, start_time, end_time, is_active)
-SELECT b.id, d.dow, TIME '09:00', TIME '19:00', TRUE
+SELECT b.id, t.dow, TIME '09:00', TIME '19:00', TRUE
 FROM barbers b
 CROSS JOIN (VALUES (1),(2),(3),(4),(5),(6)) AS t(dow)
 WHERE NOT EXISTS (
