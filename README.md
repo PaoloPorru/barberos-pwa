@@ -55,6 +55,7 @@ Script rapido dalla root del repo: `./scripts/deploy-supabase-functions.sh`
    const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXXXXXX';
    ```
 5. Sostituisci con i tuoi valori reali
+6. **Link nell’email di conferma (evita localhost):** dopo avere l’URL pubblico (es. da Vercel), in `index.html` imposta `const APP_PUBLIC_URL = 'https://tuo-dominio.vercel.app';` (senza slash finale). In Supabase → **Authentication** → **URL Configuration**, imposta **Site URL** su quell’URL e aggiungilo anche in **Redirect URLs** (es. `https://tuo-dominio.vercel.app/`). L’app passa `emailRedirectTo` alla registrazione così il link nell’email apre il sito pubblico.
 
 ---
 

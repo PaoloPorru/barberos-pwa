@@ -64,11 +64,23 @@ select.inp{cursor:pointer;}
 .crow:last-child{border-bottom:none;}
 .crlbl{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;font-family:monospace;}
 .crval{font-weight:500;font-size:14px;text-align:right;max-width:65%;}
-#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--card);border:1px solid var(--bdr);border-radius:20px;padding:10px 18px;font-size:13px;font-weight:500;z-index:900;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;max-width:min(300px,calc(100vw - 32px - var(--safe-l) - var(--safe-r)));text-align:center;}
-html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
-#toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
-#toast.ok{border-color:rgba(76,175,120,.4);color:var(--grn);}
-#toast.er{border-color:rgba(224,92,92,.4);color:var(--red);}
+#toast{position:fixed;bottom:clamp(72px,16dvh,118px);left:50%;transform:translate(-50%,14px);background:var(--card);border:1px solid var(--bdr);border-radius:clamp(14px,4vw,20px);padding:clamp(10px,2.8vw,14px) clamp(14px,4vw,22px);font-size:clamp(12px,3.4vw,14px);font-weight:500;line-height:1.45;z-index:900;opacity:0;transition:opacity .22s,transform .22s;pointer-events:none;width:fit-content;max-width:min(420px,calc(100vw - 20px - var(--safe-l) - var(--safe-r)));min-width:0;box-sizing:border-box;text-align:center;white-space:normal;overflow-wrap:anywhere;word-break:break-word;-webkit-hyphens:auto;hyphens:auto;}
+html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + clamp(10px,2.5vw,16px));}
+#toast.on{opacity:1;transform:translate(-50%,0);}
+#toast.ok{border-color:rgba(76,175,120,.45);color:var(--grn);}
+#toast.er{border-color:rgba(224,92,92,.45);color:var(--red);}
+/* Dialog conferma (sostituisce window.confirm su mobile) */
+.cfov{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.72);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:max(14px,var(--safe-l)) max(14px,var(--safe-r)) max(20px,var(--safe-b));box-sizing:border-box;opacity:0;pointer-events:none;transition:opacity .2s;}
+.cfov.on{opacity:1;pointer-events:all;}
+.cfcard{width:100%;max-width:min(380px,calc(100vw - 28px - var(--safe-l) - var(--safe-r)));background:var(--surf);border:1px solid var(--bdr);border-radius:clamp(14px,4vw,18px);padding:clamp(18px,5vw,24px) clamp(16px,4.5vw,22px) clamp(16px,4vw,20px);box-shadow:0 12px 40px rgba(0,0,0,.45);}
+.cftit{font-family:Georgia,serif;font-size:clamp(17px,4.6vw,21px);letter-spacing:.06em;font-weight:700;margin-bottom:clamp(10px,3vw,14px);text-align:center;line-height:1.25;}
+.cftxt{font-size:clamp(13px,3.5vw,15px);color:var(--cream);line-height:1.5;text-align:center;margin-bottom:clamp(18px,5vw,22px);overflow-wrap:anywhere;word-break:break-word;}
+.cfrow{display:flex;flex-direction:row;gap:10px;flex-wrap:wrap;}
+.cfrow .btn{flex:1 1 calc(50% - 5px);min-width:min(120px,calc(50% - 5px));}
+@media (max-width:340px){
+  .cfrow{flex-direction:column;}
+  .cfrow .btn{flex:1 1 auto;width:100%;min-width:0;}
+}
 /* BANNERS */
 .banner{display:none;align-items:center;gap:12px;margin:10px 14px 0;padding:12px 14px;border-radius:10px;background:var(--gdim);border:1px solid rgba(201,168,76,.3);flex-shrink:0;}
 .banner.show{display:flex;}
@@ -289,6 +301,17 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
 
 <div id="toast"></div>
 
+<div id="cfov" class="cfov" role="dialog" aria-modal="true" aria-labelledby="cftit" aria-hidden="true">
+  <div class="cfcard">
+    <div class="cftit" id="cftit">Conferma</div>
+    <p class="cftxt" id="cftxt"></p>
+    <div class="cfrow">
+      <button type="button" class="btn btng" id="cfno">Annulla</button>
+      <button type="button" class="btn btnp" id="cfyes">Conferma</button>
+    </div>
+  </div>
+</div>
+
 <div class="mover" id="modal">
   <div class="msheet">
     <div class="mhnd"></div>
@@ -305,11 +328,25 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + 18px);}
 // ═══════════════════════════════════════════════
 const SUPABASE_URL = 'https://jvoranocswbgbxwtqlem.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2b3Jhbm9jc3diZ2J4d3RxbGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NTg3OTMsImV4cCI6MjA5MDUzNDc5M30.9SRgExO-UJZ2s4bmrPo80N52QRv4wPxHWkZ0TG62aEo';
+/** URL pubblico della PWA (es. https://barberos.vercel.app). Se sviluppi su localhost, impostalo al dominio reale: il link nell’email di conferma userà questo URL. Aggiungilo anche in Supabase → Authentication → URL Configuration → Redirect URLs. */
+const APP_PUBLIC_URL = '';
 // Chiave pubblica VAPID per le push (genera su https://vapidkeys.com)
 const VAPID_PUBLIC = 'BILnQXvOsNXT_CvCh3ypi2tmVdrB5yOzCgTFGfIXtq27uDXWQdQPK-yVjf7BdXv7aVePEC4YNPChS6_q4Q_hJS4';
 // ═══════════════════════════════════════════════
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+function getEmailRedirectUrl(){
+  let base=(APP_PUBLIC_URL||'').trim().replace(/\/+$/,'');
+  if(!base){
+    base=window.location.origin;
+    if(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(base))
+      console.warn('[BarberOS] APP_PUBLIC_URL vuoto: il link di conferma email userà localhost. Imposta APP_PUBLIC_URL con il dominio pubblico e aggiungilo ai Redirect URL su Supabase.');
+  }
+  return base+'/';
+}
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth:{detectSessionInUrl:true,flowType:'pkce'}
+});
 
 const MONTHS=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const DAYS=['Do','Lu','Ma','Me','Gi','Ve','Sa'];
@@ -322,7 +359,39 @@ let ST={user:null,profile:null,barber:null,bk:{step:1,svc:null,bar:null,date:nul
 
 // ── UTILS ────────────────────────────────────────────────────
 let _tt;
-function toast(msg,type){clearTimeout(_tt);const el=ge('toast');el.textContent=msg;el.className='on '+(type||'ok');_tt=setTimeout(()=>el.className='',2800);}
+function toast(msg,type){
+  clearTimeout(_tt);
+  const el=ge('toast');
+  el.textContent=msg;
+  el.className='on '+(type||'ok');
+  const ms=Math.min(9500,2200+Math.min(String(msg).length,280)*28);
+  _tt=setTimeout(()=>{el.className='';},ms);
+}
+function confirmDialog(message,title){
+  return new Promise((resolve)=>{
+    const ov=ge('cfov');
+    ge('cftit').textContent=title||'Conferma';
+    ge('cftxt').textContent=message;
+    ov.classList.add('on');
+    ov.setAttribute('aria-hidden','false');
+    document.body.style.overflow='hidden';
+    const onEsc=e=>{if(e.key==='Escape'){document.removeEventListener('keydown',onEsc);done(false);}};
+    document.addEventListener('keydown',onEsc);
+    const done=v=>{
+      document.removeEventListener('keydown',onEsc);
+      document.body.style.overflow='';
+      ov.classList.remove('on');
+      ov.setAttribute('aria-hidden','true');
+      ge('cfyes').onclick=null;
+      ge('cfno').onclick=null;
+      ov.onclick=null;
+      resolve(v);
+    };
+    ge('cfyes').onclick=()=>done(true);
+    ge('cfno').onclick=()=>done(false);
+    ov.onclick=e=>{if(e.target===ov)done(false);};
+  });
+}
 function ge(id){return document.getElementById(id);}
 function ce(tag,cls,txt){const el=document.createElement(tag);if(cls)el.className=cls;if(txt!==undefined)el.textContent=txt;return el;}
 function ap(p,c){p.appendChild(c);return c;}
@@ -479,7 +548,14 @@ async function doReg(){
   if(!fn||!ln||!em||!pw){toast('Compila tutti i campi','er');return;}
   if(pw.length<8){toast('Password di almeno 8 caratteri','er');return;}
   const btn=ge('btnr'); btn.disabled=true; btn.textContent='Creazione...';
-  const {data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln,...(ph?{phone:ph}:{})}}});
+  const {data,error}=await sb.auth.signUp({
+    email:em,
+    password:pw,
+    options:{
+      emailRedirectTo:getEmailRedirectUrl(),
+      data:{first_name:fn,last_name:ln,...(ph?{phone:ph}:{})}
+    }
+  });
   if(error){
     const msg=error.message||'';
     const raw=msg+(error.status||'');
@@ -494,11 +570,11 @@ async function doReg(){
   else if(data.user){
     const {data:{session:s}}=await sb.auth.getSession();
     if(!s){
-      toast('Account creato. Apri l\'email e conferma, poi accedi da qui.');
+      toast('Account creato. Controlla l’email: il link di conferma apre l’app sul dominio pubblico (imposta APP_PUBLIC_URL se usi localhost).');
       authTab('l');ge('le').value=em;
     }else{
       await loadProfile(data.user);
-      if(ST.profile){afterLogin();toast('Benvenuto, '+fn+'!');}
+      if(ST.profile){afterLogin({welcomeOverride:'Benvenuto, '+fn+'! ✂️'});}
       else{toast('Profilo non creato: esegui supabase_schema.sql o supabase_fix_public.sql (policy profiles_insert_own) via psql se l’SQL Editor non risponde.', 'er');}
     }
   }
@@ -541,7 +617,7 @@ async function loadProfile(user){
   }else{ST.barber=null;}
 }
 
-function afterLogin(){
+function afterLogin(opts){
   const p=ST.profile; if(!p){toast('Profilo non trovato','er');return;}
   ge('nav').style.display='block';
   document.documentElement.classList.add('has-nav');
@@ -554,9 +630,13 @@ function afterLogin(){
   if(p.role==='BARBER'){setNav(2);showScreen('scal');renderCal();}
   else if(p.role==='ADMIN'){setNav(3);showScreen('sadm');ST.aTab=0;renderAdmin();}
   else{setNav(0);resetBk();showScreen('sh');renderBook();}
-  // Init push notifications
   initServiceWorker();
-  toast('Bentornato, '+p.first_name+'! ✂️');
+  let msg='Bentornato, '+p.first_name+'! ✂️';
+  if(opts&&typeof opts==='object'){
+    if(opts.welcomeOverride)msg=opts.welcomeOverride;
+    else if(opts.emailConfirmed)msg='Email confermata! Bentornato, '+p.first_name+'! ✂️';
+  }
+  toast(msg);
 }
 
 async function doLogout(){
@@ -776,7 +856,7 @@ function mkAptCard(parent,a,canCancel){
   ap(card,ce('div','appr','€'+a.price_snapshot));
 }
 async function cancelApt(id){
-  if(!confirm('Cancellare questo appuntamento?'))return;
+  if(!await confirmDialog('Vuoi cancellare questo appuntamento?','Cancellazione'))return;
   const {error}=await sb.from('appointments').update({status:'CANCELLED'}).eq('id',id);
   if(error){toast(error.message,'er');return;}
   toast('Appuntamento cancellato');renderApts();
@@ -943,7 +1023,11 @@ async function doAddBarber(wrap){
   const fn=(ge('nbfn').value||'').trim(),ln=(ge('nbln').value||'').trim(),em=(ge('nbem').value||'').trim(),pw=(ge('nbpw').value||'').trim(),bio=(ge('nbbio').value||'').trim(),col=wrap._col||'#c9a84c';
   if(!fn||!ln||!em||!pw){toast('Compila tutti i campi','er');return;}
   const {data:{session:prevAdm}}=await sb.auth.getSession();
-  const {data:d2,error:e2}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln}}});
+  const {data:d2,error:e2}=await sb.auth.signUp({
+    email:em,
+    password:pw,
+    options:{emailRedirectTo:getEmailRedirectUrl(),data:{first_name:fn,last_name:ln}}
+  });
   if(prevAdm?.refresh_token){
     await sb.auth.setSession({access_token:prevAdm.access_token,refresh_token:prevAdm.refresh_token});
     ST.user=prevAdm.user;
@@ -1068,11 +1152,18 @@ function attachPullToRefresh(el){
 // INIT
 // ═══════════════════════════════════════════════════════════
 async function init(){
+  const urlHadAuthCode=(window.location.search||'').includes('code=');
   try{
     const {data:{session}}=await sb.auth.getSession();
+    if((window.location.search||'').includes('code=')){
+      const u=new URL(window.location.href);
+      ['code','redirect_to','type'].forEach(k=>u.searchParams.delete(k));
+      const rest=u.searchParams.toString();
+      window.history.replaceState({},document.title,u.pathname+(rest?'?'+rest:'')+u.hash);
+    }
     if(session?.user){
       await loadProfile(session.user);
-      if(ST.profile){afterLogin();return;}
+      if(ST.profile){afterLogin(urlHadAuthCode&&session?{emailConfirmed:true}:undefined);return;}
       toast('Sessione senza profilo: applica supabase_schema.sql o supabase_fix_public.sql (psql se il dashboard non risponde).','er');
       await sb.auth.signOut();
     }
