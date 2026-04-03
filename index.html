@@ -269,7 +269,7 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + clamp(10px,2.
     <div class="scroll"><div id="cgrid" class="cgrid"></div></div>
   </div>
 
-  <!-- ADMIN -->
+  <!-- ADMIN (solo utenti con role ADMIN, assegnato da SQL su Supabase) -->
   <div class="scr" id="sadm">
     <div class="tb"><div class="logo">BARBER<em>OS</em></div><div class="tbsub">Admin</div></div>
     <div class="htabs" id="admtabs">
@@ -279,6 +279,17 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + clamp(10px,2.
       <div class="htab"    id="at3" onclick="aTab(3)">💈 Servizi</div>
     </div>
     <div class="scroll" id="admbody"></div>
+  </div>
+
+  <!-- GESTIONE BARBIERE -->
+  <div class="scr" id="sbd">
+    <div class="tb"><div class="logo">BARBER<em>OS</em></div><div class="tbsub">Gestione salone</div></div>
+    <div class="htabs" id="bdtabs">
+      <div class="htab on" id="bt0" onclick="bTab(0)">💈 Servizi</div>
+      <div class="htab" id="bt1" onclick="bTab(1)">✂️ Team</div>
+      <div class="htab" id="bt2" onclick="bTab(2)">➕ Walk-in</div>
+    </div>
+    <div class="scroll" id="bdbody"></div>
   </div>
 
   <!-- PROFILE -->
@@ -352,10 +363,10 @@ const MONTHS=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov',
 const DAYS=['Do','Lu','Ma','Me','Gi','Ve','Sa'];
 const BMAP={CONFIRMED:'bgc',CANCELLED:'bgx',COMPLETED:'bgd',PENDING:'bgp'};
 const BLBL={CONFIRMED:'Confermato',CANCELLED:'Cancellato',COMPLETED:'Completato',PENDING:'In attesa'};
-const SCREENS=['sload','sa','sh','sap','scal','sadm','spro'];
+const SCREENS=['sload','sa','sh','sap','scal','sadm','spro','sbd'];
 const SNAV=['sh','sap','scal','sadm','spro'];
 
-let ST={user:null,profile:null,barber:null,bk:{step:1,svc:null,bar:null,date:null,slot:null,notes:''},calOff:0,aTab:0};
+let ST={user:null,profile:null,barber:null,bk:{step:1,svc:null,bar:null,date:null,slot:null,notes:''},calOff:0,aTab:0,bTab:0};
 
 // ── UTILS ────────────────────────────────────────────────────
 let _tt;
@@ -625,8 +636,16 @@ function afterLogin(opts){
   ge('ni0').style.display=(p.role==='CLIENT'||p.role==='ADMIN')?'flex':'none';
   ge('ni1').style.display=p.role!=='ADMIN'?'flex':'none';
   ge('ni2').style.display=p.role==='BARBER'?'flex':'none';
-  ge('ni3').style.display=p.role==='ADMIN'?'flex':'none';
+  ge('ni3').style.display=(p.role==='ADMIN'||p.role==='BARBER')?'flex':'none';
   ge('ni4').style.display='flex';
+  if(p.role==='ADMIN'){
+    ge('ni3').querySelector('.nilbl').textContent='Dashboard';
+    ge('ni3').querySelector('.niico').textContent='📊';
+  }
+  if(p.role==='BARBER'){
+    ge('ni3').querySelector('.nilbl').textContent='Gestione';
+    ge('ni3').querySelector('.niico').textContent='⚙️';
+  }
   if(p.role==='BARBER'){setNav(2);showScreen('scal');renderCal();}
   else if(p.role==='ADMIN'){setNav(3);showScreen('sadm');ST.aTab=0;renderAdmin();}
   else{setNav(0);resetBk();showScreen('sh');renderBook();}
@@ -643,7 +662,7 @@ async function doLogout(){
   await sb.auth.signOut();
   // Unsub push
   if(_swReg){const s=await _swReg.pushManager.getSubscription();if(s)await s.unsubscribe();}
-  ST={user:null,profile:null,barber:null,bk:{step:1,svc:null,bar:null,date:null,slot:null,notes:''},calOff:0,aTab:0};
+  ST={user:null,profile:null,barber:null,bk:{step:1,svc:null,bar:null,date:null,slot:null,notes:''},calOff:0,aTab:0,bTab:0};
   document.documentElement.classList.remove('has-nav');
   ge('nav').style.display='none';
   ge('le').value='';ge('lp').value='';
@@ -654,12 +673,31 @@ async function doLogout(){
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════
 function goNav(idx){
-  setNav(idx);showScreen(SNAV[idx]);
-  if(idx===0){resetBk();renderBook();}
-  if(idx===1)renderApts();
-  if(idx===2)renderCal();
-  if(idx===3){ST.aTab=0;renderAdmin();}
-  if(idx===4)renderProfile();
+  const r=ST.profile?.role;
+  setNav(idx);
+  if(idx===0){showScreen('sh');resetBk();renderBook();return;}
+  if(idx===1){showScreen('sap');renderApts();return;}
+  if(idx===2){showScreen('scal');renderCal();return;}
+  if(idx===3){
+    if(r==='BARBER'){showScreen('sbd');ST.bTab=0;renderBarDesk();return;}
+    if(r==='ADMIN'){showScreen('sadm');ST.aTab=0;renderAdmin();return;}
+    return;
+  }
+  if(idx===4){showScreen('spro');renderProfile();}
+}
+
+function refreshStaffUI(){
+  const r=ST.profile?.role;
+  if(r==='ADMIN'&&ge('sadm')?.classList.contains('on'))renderAdmin();
+  else if(r==='BARBER'&&ge('sbd')?.classList.contains('on'))renderBarDesk();
+}
+
+function aptClientLabel(a){
+  if(a.client_id&&a.profiles&&(a.profiles.first_name||a.profiles.last_name))
+    return ((a.profiles.first_name||'')+' '+(a.profiles.last_name||'')).trim()||'Cliente';
+  if(a.guest_first_name||a.guest_last_name)
+    return ((a.guest_first_name||'')+' '+(a.guest_last_name||'')).trim()+' (ospite)';
+  return '—';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -821,15 +859,17 @@ async function renderApts(){
     const em=ap(body,ce('div'));em.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;text-align:center;gap:10px';
     ap(em,ce('div',null,'📅')).style.fontSize='48px';
     ap(em,ce('div',null,'Nessun appuntamento')).style.cssText='font-size:18px;font-weight:600';
-    ap(em,ce('div',null,'Prenota il tuo primo taglio!')).style.cssText='font-size:14px;color:var(--mut)';
-    const btn=ap(em,ce('button','btn btnp'));btn.style.cssText='margin-top:12px;width:auto;padding:12px 24px';btn.textContent='Prenota ora →';btn.onclick=()=>goNav(0);
+    ap(em,ce('div',null,ST.profile.role==='CLIENT'?'Prenota il tuo primo taglio!':'Niente in agenda.')).style.cssText='font-size:14px;color:var(--mut)';
+    if(ST.profile.role==='CLIENT'){
+      const btn=ap(em,ce('button','btn btnp'));btn.style.cssText='margin-top:12px;width:auto;padding:12px 24px';btn.textContent='Prenota ora →';btn.onclick=()=>goNav(0);
+    }
     return;
   }
-  if(up.length){mkSection(body,'In programma ('+up.length+')');up.forEach(a=>mkAptCard(body,a,a.status==='CONFIRMED'&&ST.profile.role==='CLIENT'));}
-  if(past.length){mkSection(body,'Storico');const gr=ap(body,ce('div'));gr.style.opacity='0.55';past.forEach(a=>mkAptCard(gr,a,false));}
+  if(up.length){mkSection(body,'In programma ('+up.length+')');up.forEach(a=>mkAptCard(body,a,a.status==='CONFIRMED'&&ST.profile.role==='CLIENT',ST.profile.role==='BARBER'));}
+  if(past.length){mkSection(body,'Storico');const gr=ap(body,ce('div'));gr.style.opacity='0.55';past.forEach(a=>mkAptCard(gr,a,false,false));}
 }
 function mkSection(parent,txt){const d=ap(parent,ce('div'));d.style.padding='14px 14px 6px';ap(d,ce('div','lbl',txt));}
-function mkAptCard(parent,a,canCancel){
+function mkAptCard(parent,a,canCancel,barberManage){
   const wrap=ap(parent,ce('div'));wrap.style.padding='0 12px 9px';
   const card=ap(wrap,ce('div','apc'));
   const col=a.barbers?.color_hex||'var(--gold)';
@@ -840,20 +880,55 @@ function mkAptCard(parent,a,canCancel){
   const info=ap(card,ce('div'));info.style.flex='1';
   ap(info,ce('div','apsv',a.services?.name||'—'));
   const bfn=a.barbers?.profiles?.first_name||'';const bln=a.barbers?.profiles?.last_name||'';
-  const cfn=a.profiles?.first_name||'';const cln=a.profiles?.last_name||'';
-  const cname=ST.profile.role!=='CLIENT'?' · '+cfn+' '+cln:'';
-  ap(info,ce('div','apmeta',dt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+' · '+bfn+' '+bln+cname));
+  const who=ST.profile.role!=='CLIENT'?' · '+aptClientLabel(a):'';
+  ap(info,ce('div','apmeta',dt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+' · '+bfn+' '+bln+who));
   const bdg=ap(info,ce('span','badge '+(BMAP[a.status]||'bgp')));bdg.style.marginTop='6px';bdg.textContent=BLBL[a.status]||a.status;
 
-  // CALENDAR BUTTONS per appuntamenti confermati futuri
-  if(a.status==='CONFIRMED'&&new Date(a.start_datetime)>new Date()){
+  if(a.status==='CONFIRMED'&&new Date(a.start_datetime)>new Date()&&ST.profile.role==='CLIENT'){
     const calRow=ap(info,ce('div'));calRow.style.cssText='display:flex;gap:7px;margin-top:9px';
     const bIcs=ap(calRow,ce('button','btn btnical btnsm'));bIcs.textContent='📅 Apple/Outlook';bIcs.onclick=()=>downloadICS(a);
     const bGcal=ap(calRow,ce('button','btn btngcal btnsm'));bGcal.textContent='📅 Google';bGcal.onclick=()=>openGoogleCalendar(a);
   }
 
+  if(barberManage){
+    const row=ap(info,ce('div'));row.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-top:9px';
+    if(a.status==='PENDING'){
+      const bc=ap(row,ce('button','btn btnp btnsm'));bc.textContent='Conferma';bc.onclick=async()=>{
+        const {error}=await sb.from('appointments').update({status:'CONFIRMED'}).eq('id',a.id);
+        if(error){toast(error.message,'er');return;}
+        toast('Confermato');renderApts();renderCal();
+      };
+    }
+    const br=ap(row,ce('button','btn btng btnsm'));br.textContent='Sposta';br.onclick=()=>openRescheduleModal(a);
+    const bx=ap(row,ce('button','btn btnd btnsm'));bx.textContent='Elimina';bx.onclick=()=>deleteAptRow(a.id);
+  }
+
   if(canCancel){const btn=ap(info,ce('button','btn btnd btnsm'));btn.style.marginTop='9px';btn.textContent='Cancella';btn.onclick=()=>cancelApt(a.id);}
   ap(card,ce('div','appr','€'+a.price_snapshot));
+}
+async function deleteAptRow(id){
+  if(!await confirmDialog('Eliminare definitivamente questo appuntamento?','Elimina'))return;
+  const {error}=await sb.from('appointments').delete().eq('id',id);
+  if(error){toast(error.message,'er');return;}
+  toast('Appuntamento eliminato');renderApts();renderCal();closeModal();
+}
+function openRescheduleModal(a){
+  const dur=(a.services&&a.services.duration_minutes)||30;
+  const body=openModal('Sposta orario');
+  const wrap=ap(body,ce('div'));wrap.style.cssText='display:flex;flex-direction:column;gap:12px';
+  ap(wrap,ce('label','lbl','Nuovo inizio'));
+  const inp=ap(wrap,ce('input','inp'));inp.type='datetime-local';inp.id='rsdt';
+  const d=new Date(a.start_datetime);
+  inp.value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const btn=ap(wrap,ce('button','btn btnp'));btn.textContent='Salva';btn.onclick=async()=>{
+    const v=ge('rsdt').value;if(!v){toast('Scegli data e ora','er');return;}
+    const start=new Date(v);
+    const s=start.toISOString();
+    const e=new Date(start.getTime()+dur*60000).toISOString();
+    const {error}=await sb.from('appointments').update({start_datetime:s,end_datetime:e}).eq('id',a.id);
+    if(error){toast(error.message,'er');return;}
+    closeModal();renderApts();renderCal();toast('Orario aggiornato');
+  };
 }
 async function cancelApt(id){
   if(!await confirmDialog('Vuoi cancellare questo appuntamento?','Cancellazione'))return;
@@ -875,7 +950,7 @@ async function renderCal(){
   const hdr=ge('cdhdr');hdr.innerHTML='';ap(hdr,ce('div'));
   days.forEach(d=>{const isT=d.toDateString()===new Date().toDateString();ap(hdr,ce('div','cdlbl'+(isT?' td':''),DN[(d.getDay()+6)%7]+' '+d.getDate()));});
   const dF=days[0].toISOString().split('T')[0],dT=days[2].toISOString().split('T')[0];
-  const {data:apts}=await sb.from('appointments').select('*, services(name), profiles!appointments_client_id_fkey(first_name,last_name)').eq('barber_id',b.id).neq('status','CANCELLED').gte('start_datetime',dF+'T00:00:00').lte('start_datetime',dT+'T23:59:59');
+  const {data:apts}=await sb.from('appointments').select('*, services(name,duration_minutes), profiles!appointments_client_id_fkey(first_name,last_name)').eq('barber_id',b.id).neq('status','CANCELLED').gte('start_datetime',dF+'T00:00:00').lte('start_datetime',dT+'T23:59:59');
   const grid=ge('cgrid');grid.innerHTML='';
   const HOURS=[9,10,11,12,13,14,15,16,17,18];
   HOURS.forEach(h=>{
@@ -885,7 +960,7 @@ async function renderCal(){
       const cell=ap(grid,ce('div','ccel'));
       (apts||[]).filter(a=>a.start_datetime.startsWith(ds)&&new Date(a.start_datetime).getHours()===h).forEach(a=>{
         const div=ap(cell,ce('div','capt'));div.style.background=b.color_hex+'22';div.style.borderLeft='3px solid '+b.color_hex;
-        ap(div,ce('div','captn',(a.profiles?.first_name||'?')+' '+(a.profiles?.last_name||'')));
+        ap(div,ce('div','captn',aptClientLabel(a)));
         ap(div,ce('div','capts',a.services?.name||'?'));
         div.onclick=()=>showAptDetail(a);
       });
@@ -896,7 +971,7 @@ function showAptDetail(a){
   const mbody=ge('mbody');mbody.innerHTML='';
   const d=new Date(a.start_datetime);
   const rows=[
-    ['Cliente',(a.profiles?.first_name||'?')+' '+(a.profiles?.last_name||'')],
+    ['Cliente',aptClientLabel(a)],
     ['Servizio',a.services?.name||'?'],
     ['Data',d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})],
     ['Orario',d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})],
@@ -905,10 +980,18 @@ function showAptDetail(a){
   ];
   rows.forEach(([l,v],i)=>{const row=ap(mbody,ce('div','crow'));ap(row,ce('span','crlbl',l));const val=ap(row,ce('span','crval',v));if(i===2)val.style.textTransform='capitalize';});
   const bdg=ap(mbody,ce('span','badge '+(BMAP[a.status]||'bgp')));bdg.style.marginTop='10px';bdg.textContent=BLBL[a.status]||a.status;
+  if(ST.profile?.role==='BARBER'&&ST.barber&&a.barber_id===ST.barber.id){
+    const row=ap(mbody,ce('div'));row.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-top:14px';
+    if(a.status==='PENDING'){
+      const bc=ap(row,ce('button','btn btnp btnsm'));bc.textContent='Conferma cliente';bc.onclick=async()=>{await sb.from('appointments').update({status:'CONFIRMED'}).eq('id',a.id);closeModal();renderCal();toast('Confermato');};
+    }
+    const br=ap(row,ce('button','btn btng btnsm'));br.textContent='Sposta';br.onclick=()=>{closeModal();openRescheduleModal(a);};
+    const bd=ap(row,ce('button','btn btnd btnsm'));bd.textContent='Elimina';bd.onclick=()=>{closeModal();deleteAptRow(a.id);};
+  }
   if(a.status==='CONFIRMED'){
     const btns=ap(mbody,ce('div'));btns.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px';
     const bc=ap(btns,ce('button','btn btnp btnsm'));bc.style.width='100%';bc.textContent='✓ Completato';bc.onclick=()=>setAptSt(a.id,'COMPLETED');
-    const bx=ap(btns,ce('button','btn btnd btnsm'));bx.style.width='100%';bx.textContent='✕ Cancella';bx.onclick=()=>setAptSt(a.id,'CANCELLED');
+    const bx=ap(btns,ce('button','btn btnd btnsm'));bx.style.width='100%';bx.textContent='✕ Annulla';bx.onclick=()=>setAptSt(a.id,'CANCELLED');
   }
   ge('mtit').textContent='Dettaglio';ge('modal').className='mover on';
 }
@@ -963,7 +1046,7 @@ async function rAdmApts(body){
     const card=ap(pad,ce('div','card'));card.style.cssText='margin-bottom:9px;border-left:3px solid '+(a.barbers?.color_hex||'var(--gold)');
     const row=ap(card,ce('div'));row.style.cssText='display:flex;justify-content:space-between;align-items:flex-start';
     const left=ap(row,ce('div'));
-    ap(left,ce('div',null,(a.profiles?.first_name||'?')+' '+(a.profiles?.last_name||''))).style.fontWeight='600';
+    ap(left,ce('div',null,aptClientLabel(a))).style.fontWeight='600';
     ap(left,ce('div',null,(a.services?.name||'?')+' · '+(a.barbers?.profiles?.first_name||'?'))).style.cssText='font-size:12px;color:var(--mut)';
     ap(left,ce('div',null,d.getDate()+' '+MONTHS[d.getMonth()]+' · '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))).style.cssText='font-size:12px;color:var(--mut)';
     const right=ap(row,ce('div'));right.style.textAlign='right';
@@ -997,6 +1080,136 @@ async function rAdmServices(body){
     ap(row,ce('div',null,'€'+sv.price)).style.cssText='font-family:Georgia,serif;font-size:24px;color:var(--gold)';
   });
   const btn=ap(pad,ce('button','btn btng'));btn.style.marginTop='4px';btn.textContent='+ Aggiungi Servizio';btn.onclick=mAddSvc;
+}
+
+function bTab(idx){ST.bTab=idx;for(let i=0;i<3;i++){const el=ge('bt'+i);if(el)el.className='htab'+(i===idx?' on':'');}renderBarDesk();}
+async function renderBarDesk(){
+  const body=ge('bdbody');body.innerHTML='<div class="ctr"><div class="spin"></div></div>';
+  if(ST.bTab===0)await rBdServices(body);
+  if(ST.bTab===1)await rBdBarbersDesk(body);
+  if(ST.bTab===2)await rBdWalkIn(body);
+}
+async function rBdServices(body){
+  const {data:svcs}=await sb.from('services').select('*').eq('is_active',true).order('sort_order');
+  body.innerHTML='';const pad=ap(body,ce('div'));pad.style.padding='12px';
+  (svcs||[]).forEach(sv=>{
+    const card=ap(pad,ce('div','card'));card.style.marginBottom='9px';
+    const row=ap(card,ce('div'));row.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:10px';
+    const left=ap(row,ce('div'));ap(left,ce('div',null,sv.name)).style.fontWeight='600';
+    if(sv.description)ap(left,ce('div',null,sv.description)).style.cssText='font-size:12px;color:var(--mut)';
+    ap(left,ce('div',null,'⏱ '+sv.duration_minutes+' min')).style.cssText='font-size:11px;color:var(--mut);margin-top:3px;font-family:monospace';
+    const right=ap(row,ce('div'));right.style.textAlign='right';
+    ap(right,ce('div',null,'€'+sv.price)).style.cssText='font-family:Georgia,serif;font-size:22px;color:var(--gold)';
+    const bt=ap(right,ce('div'));bt.style.cssText='display:flex;gap:6px;margin-top:8px;justify-content:flex-end;flex-wrap:wrap';
+    const be=ap(bt,ce('button','btn btng btnsm'));be.textContent='Modifica';be.onclick=()=>mEditSvc(sv);
+    const bd=ap(bt,ce('button','btn btnd btnsm'));bd.textContent='Elimina';bd.onclick=()=>doDeleteSvc(sv);
+  });
+  const btn=ap(pad,ce('button','btn btng'));btn.style.marginTop='4px';btn.textContent='+ Nuovo servizio';btn.onclick=mAddSvc;
+}
+async function doDeleteSvc(sv){
+  if(!await confirmDialog('Eliminare il servizio "'+sv.name+'"?','Servizi'))return;
+  const {error}=await sb.from('services').delete().eq('id',sv.id);
+  if(error){toast(error.message,'er');return;}
+  toast('Servizio eliminato');renderBarDesk();
+}
+function mEditSvc(sv){
+  const body=openModal('Modifica servizio');
+  const wrap=ap(body,ce('div'));wrap.style.cssText='display:flex;flex-direction:column;gap:11px';
+  ap(wrap,ce('label','lbl','Nome'));const nm=ap(wrap,ce('input','inp'));nm.id='esnm';nm.value=sv.name;
+  ap(wrap,ce('label','lbl','Descrizione'));const ds=ap(wrap,ce('input','inp'));ds.id='esds';ds.value=sv.description||'';
+  const r=ap(wrap,ce('div','gr2'));
+  const p1=ap(r,ce('div'));ap(p1,ce('label','lbl','Prezzo €'));const pr=ap(p1,ce('input','inp'));pr.id='espr';pr.type='number';pr.step='any';pr.value=sv.price;
+  const d1=ap(r,ce('div'));ap(d1,ce('label','lbl','Durata'));const sel=ap(d1,ce('select','inp'));sel.id='esdu';
+  const stdDur=[15,20,30,45,60,75,90];
+  stdDur.forEach(m=>{const o=ce('option',null,m+' min');o.value=m;if(m===Number(sv.duration_minutes))o.selected=true;ap(sel,o);});
+  if(!stdDur.includes(Number(sv.duration_minutes))){const o=ce('option',null,sv.duration_minutes+' min');o.value=sv.duration_minutes;o.selected=true;ap(sel,o);}
+  const btn=ap(wrap,ce('button','btn btnp'));btn.textContent='Salva';btn.onclick=async()=>{
+    const name=(ge('esnm').value||'').trim(),desc=(ge('esds').value||'').trim(),price=parseFloat(ge('espr').value||'0'),dur=parseInt(ge('esdu').value||'30',10);
+    if(!name||!price){toast('Nome e prezzo obbligatori','er');return;}
+    const {error}=await sb.from('services').update({name,description:desc||null,price,duration_minutes:dur}).eq('id',sv.id);
+    if(error){toast(error.message,'er');return;}
+    closeModal();toast('Servizio aggiornato');renderBarDesk();
+  };
+}
+async function rBdBarbersDesk(body){
+  const {data:bars}=await sb.from('barbers').select('*, profiles(first_name,last_name,email)');
+  body.innerHTML='';const pad=ap(body,ce('div'));pad.style.padding='12px';
+  (bars||[]).forEach(b=>{
+    const fn=b.profiles?.first_name||'',ln=b.profiles?.last_name||'';
+    const card=ap(pad,ce('div','card'));card.style.marginBottom='9px';
+    const row=ap(card,ce('div'));row.style.cssText='display:flex;align-items:center;gap:13px;flex-wrap:wrap';
+    const av=ap(row,ce('div'));av.style.cssText='width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:'+b.color_hex+'22;border:2px solid '+b.color_hex;av.textContent='✂️';
+    const info=ap(row,ce('div'));info.style.flex='1';info.style.minWidth='120px';
+    ap(info,ce('div',null,fn+' '+ln)).style.fontWeight='600';
+    ap(info,ce('div',null,b.profiles?.email||'')).style.cssText='font-size:12px;color:var(--mut)';
+    const bdg=ap(info,ce('span','badge '+(b.is_accepting?'bgc':'bgx')));bdg.style.marginTop='5px';bdg.textContent=b.is_accepting?'Accetta prenotazioni':'In pausa';
+    const act=ap(row,ce('div'));act.style.cssText='display:flex;flex-direction:column;gap:6px;min-width:120px';
+    const t=ap(act,ce('button','btn btng btnsm'));t.textContent=b.is_accepting?'Metti in pausa':'Riattiva';t.onclick=async()=>{
+      const {error}=await sb.from('barbers').update({is_accepting:!b.is_accepting}).eq('id',b.id);
+      if(error){toast(error.message,'er');return;}
+      renderBarDesk();
+    };
+    if(b.id!==ST.barber?.id){
+      const rm=ap(act,ce('button','btn btnd btnsm'));rm.textContent='Rimuovi';rm.onclick=()=>removeBarberRow(b.id,b.user_id);
+    }
+  });
+  const btn=ap(pad,ce('button','btn btng'));btn.style.marginTop='4px';btn.textContent='+ Aggiungi barbiere';btn.onclick=mAddBarber;
+}
+async function removeBarberRow(bid,userId){
+  if(!await confirmDialog('Rimuovere questo barbiere dal team? Il profilo resta come cliente.','Team'))return;
+  const {error}=await sb.from('barbers').delete().eq('id',bid);
+  if(error){toast(error.message,'er');return;}
+  await sb.from('profiles').update({role:'CLIENT'}).eq('id',userId);
+  toast('Barbiere rimosso dal salone');renderBarDesk();
+}
+async function rBdWalkIn(body){
+  const b=ST.barber;if(!b){body.innerHTML='<div style="padding:24px;text-align:center;color:var(--mut)">Profilo barbiere mancante</div>';return;}
+  body.innerHTML='';const pad=ap(body,ce('div'));pad.style.padding='12px';
+  ap(pad,ce('p',null,'Senza account cliente: usa stato «In attesa» finché non confermi (dopo telefonata / messaggio / notifica).')).style.cssText='font-size:13px;color:var(--mut);margin-bottom:14px;line-height:1.4';
+  ap(pad,ce('label','lbl','Servizio'));
+  const ssel=ap(pad,ce('select','inp'));ssel.id='wisvc';
+  const {data:svcs}=await sb.from('services').select('*').eq('is_active',true).order('sort_order');
+  if(!svcs?.length){body.innerHTML='<div style="padding:24px;text-align:center;color:var(--mut)">Aggiungi almeno un servizio nella tab Servizi.</div>';return;}
+  (svcs||[]).forEach(sv=>{const o=ce('option',null,sv.name+' · €'+sv.price);o.value=sv.id;ap(ssel,o);});
+  const r1=ap(pad,ce('div','gr2'));
+  const c1=ap(r1,ce('div'));ap(c1,ce('label','lbl','Nome cliente'));ap(c1,ce('input','inp')).id='wigfn';
+  const c2=ap(r1,ce('div'));ap(c2,ce('label','lbl','Cognome'));ap(c2,ce('input','inp')).id='wigln';
+  ap(pad,ce('label','lbl','Data'));
+  const din=ap(pad,ce('input','inp'));din.type='date';din.id='widt';const tmr=new Date();tmr.setDate(tmr.getDate()+1);din.value=tmr.toISOString().split('T')[0];
+  ap(pad,ce('label','lbl','Orario'));
+  const slotWrap=ap(pad,ce('div'));slotWrap.id='wislots';slotWrap.innerHTML='<div class="ctr"><div class="spin"></div></div>';
+  const relSlots=async()=>{
+    const svcId=ge('wisvc').value,dt=ge('widt').value;if(!svcId||!dt)return;
+    const sv=(svcs||[]).find(x=>x.id===svcId);if(!sv)return;
+    slotWrap.innerHTML='';
+    const slots=await calcSlots(b.id,dt,sv.duration_minutes);
+    if(!slots.length){slotWrap.textContent='Nessuno slot libero in questa data.';slotWrap.style.cssText='padding:12px;color:var(--mut)';return;}
+    const g=ap(slotWrap,ce('div','slgrid'));
+    slots.forEach(sl=>{
+      const btn=ap(g,ce('div','slt'));btn.textContent=sl.label;btn.dataset.start=sl.start;btn.dataset.end=sl.end;
+      btn.onclick=()=>{[...g.querySelectorAll('.slt')].forEach(x=>x.classList.remove('sel'));btn.classList.add('sel');pad._wiSlot=sl;};
+    });
+  };
+  ssel.onchange=relSlots;din.onchange=relSlots;
+  ap(pad,ce('label','lbl','Stato'));
+  const st=ap(pad,ce('select','inp'));st.id='wist';[['PENDING','In attesa (conferma dopo notifica)'],['CONFIRMED','Confermato subito']].forEach(([v,t])=>{const o=ce('option',null,t);o.value=v;ap(st,o);});
+  ap(pad,ce('label','lbl','Note'));const nt=ap(pad,ce('textarea','inp'));nt.id='wint';nt.rows=2;nt.style.resize='none';
+  await relSlots();
+  const sub=ap(pad,ce('button','btn btnp'));sub.style.marginTop='12px';sub.textContent='Crea prenotazione';sub.onclick=async()=>{
+    const svcId=ge('wisvc').value,gfn=(ge('wigfn').value||'').trim(),gln=(ge('wigln').value||'').trim(),stt=ge('wist').value,notes=ge('wint').value||'';
+    const sl=pad._wiSlot;
+    if(!gfn||!gln){toast('Nome e cognome obbligatori','er');return;}
+    if(!sl){toast('Scegli un orario','er');return;}
+    const sv=(svcs||[]).find(x=>x.id===svcId);
+    const {error}=await sb.from('appointments').insert({
+      client_id:null,barber_id:b.id,service_id:svcId,
+      start_datetime:sl.start,end_datetime:sl.end,
+      status:stt,price_snapshot:sv.price,notes,
+      guest_first_name:gfn,guest_last_name:gln
+    });
+    if(error){toast(error.message,'er');return;}
+    toast('Prenotazione creata');goNav(1);renderApts();
+  };
 }
 
 // ── Admin Modals ─────────────────────────────────────────────
@@ -1048,7 +1261,7 @@ async function doAddBarber(wrap){
       const {error:ea}=await sb.from('availability').insert({barber_id:bid,day_of_week:d,start_time:'09:00',end_time:'19:00'});
       if(ea){toast('Disponibilità: '+ea.message,'er');return;}
     }
-    closeModal();toast('Barbiere creato! Controlla email per conferma.');renderAdmin();
+    closeModal();toast('Barbiere creato! Controlla email per conferma.');refreshStaffUI();
   }
 }
 function mAddSvc(){
@@ -1067,7 +1280,7 @@ async function doAddSvc(){
   if(!name||!price){toast('Nome e prezzo obbligatori','er');return;}
   const {error}=await sb.from('services').insert({name,description:desc,price,duration_minutes:dur,sort_order:99});
   if(error){toast(error.message,'er');return;}
-  closeModal();toast('Servizio creato!');renderAdmin();
+  closeModal();toast('Servizio creato!');refreshStaffUI();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1178,6 +1391,7 @@ ge('cprev').onclick=()=>{ST.calOff--;renderCal();};
 ge('cnext').onclick=()=>{ST.calOff++;renderCal();};
 attachPullToRefresh(ge('apanel'));
 attachPullToRefresh(ge('probody'));
+attachPullToRefresh(ge('bdbody'));
 init();
 </script>
 </body>

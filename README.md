@@ -85,7 +85,13 @@ Script rapido dalla root del repo: `./scripts/deploy-supabase-functions.sh`
 
 ---
 
-## 👑 STEP 6 — Crea il tuo Account Admin
+## 👑 STEP 6 — Ruoli (Admin solo SQL, Barbieri dall’app)
+
+- **ADMIN**: non si assegna dall’interfaccia. Dopo la registrazione, in Supabase **SQL Editor** esegui `UPDATE profiles SET role = 'ADMIN' WHERE id = (SELECT id FROM auth.users WHERE email = 'tua@email.it');`
+- **BARBER**: un admin (SQL) o un altro barbiere può aggiungerlo da **Gestione salone** nell’app; oppure promuovi via SQL come per l’admin con `role = 'BARBER'` e inserisci la riga in `barbers`.
+- Se il database esisteva già prima delle prenotazioni **walk-in** (cliente senza account), esegui `supabase_barber_migration.sql` e aggiorna le policy da `supabase_schema.sql`.
+
+### Promuovere il primo admin (classico)
 
 1. Apri la tua app all'URL Vercel
 2. Registrati con la tua email e password
@@ -101,9 +107,9 @@ Script rapido dalla root del repo: `./scripts/deploy-supabase-functions.sh`
 
 ## ✂️ STEP 7 — Crea i Barbieri
 
-1. Accedi come Admin
-2. Vai su **Dashboard → Barbieri**
-3. Clicca **"+ Aggiungi Barbiere"**
+1. Accedi come **Admin** (ruolo impostato da SQL) o come **Barbiere**
+2. Vai su **Dashboard → Barbieri** (admin) oppure **Gestione salone → Team** (barbiere)
+3. Clicca **"+ Aggiungi barbiere"**
 4. Inserisci nome, cognome, email e password temporanea
 5. Il barbiere riceverà un'email di conferma da Supabase
 6. Dopo la conferma, può accedere con le sue credenziali

@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS blocked_slots (
 -- ── APPOINTMENTS ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS appointments (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id      UUID NOT NULL REFERENCES profiles(id),
+  client_id      UUID REFERENCES profiles(id),
   barber_id      UUID NOT NULL REFERENCES barbers(id),
   service_id     UUID NOT NULL REFERENCES services(id),
   start_datetime TIMESTAMPTZ NOT NULL,
@@ -72,12 +72,25 @@ CREATE TABLE IF NOT EXISTS appointments (
                    CHECK (status IN ('PENDING','CONFIRMED','CANCELLED','COMPLETED')),
   price_snapshot NUMERIC(8,2) NOT NULL,
   notes          TEXT,
+  guest_first_name TEXT,
+  guest_last_name  TEXT,
   created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Colonna email profilo (sync da auth) + promemoria / push (v2)
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS guest_first_name TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS guest_last_name TEXT;
+ALTER TABLE appointments ALTER COLUMN client_id DROP NOT NULL;
+ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_client_or_guest_chk;
+ALTER TABLE appointments ADD CONSTRAINT appointments_client_or_guest_chk CHECK (
+  client_id IS NOT NULL
+  OR (
+    guest_first_name IS NOT NULL AND btrim(guest_first_name) <> ''
+    AND guest_last_name IS NOT NULL AND btrim(guest_last_name) <> ''
+  )
+);
 
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -185,9 +198,12 @@ DROP POLICY IF EXISTS "profiles_update" ON profiles;
 DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
 DROP POLICY IF EXISTS "profiles_insert_admin" ON profiles;
 CREATE POLICY "profiles_select" ON profiles FOR SELECT USING (true);
-CREATE POLICY "profiles_update" ON profiles FOR UPDATE USING (auth.uid() = id OR get_my_role() = 'ADMIN');
+CREATE POLICY "profiles_update" ON profiles FOR UPDATE USING (
+  auth.uid() = id OR get_my_role() = 'ADMIN'
+  OR get_my_role() = 'BARBER'
+);
 CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "profiles_insert_admin" ON profiles FOR INSERT WITH CHECK (get_my_role() = 'ADMIN');
+CREATE POLICY "profiles_insert_admin" ON profiles FOR INSERT WITH CHECK (get_my_role() IN ('ADMIN','BARBER'));
 
 -- BARBERS
 ALTER TABLE barbers ENABLE ROW LEVEL SECURITY;
@@ -195,8 +211,10 @@ DROP POLICY IF EXISTS "barbers_select" ON barbers;
 DROP POLICY IF EXISTS "barbers_insert" ON barbers;
 DROP POLICY IF EXISTS "barbers_update" ON barbers;
 CREATE POLICY "barbers_select"  ON barbers FOR SELECT  USING (true);
-CREATE POLICY "barbers_insert"  ON barbers FOR INSERT  WITH CHECK (get_my_role() = 'ADMIN');
-CREATE POLICY "barbers_update"  ON barbers FOR UPDATE  USING (user_id = auth.uid() OR get_my_role() = 'ADMIN');
+DROP POLICY IF EXISTS "barbers_delete" ON barbers;
+CREATE POLICY "barbers_insert"  ON barbers FOR INSERT  WITH CHECK (get_my_role() IN ('ADMIN','BARBER'));
+CREATE POLICY "barbers_update"  ON barbers FOR UPDATE  USING (user_id = auth.uid() OR get_my_role() IN ('ADMIN','BARBER'));
+CREATE POLICY "barbers_delete"  ON barbers FOR DELETE  USING (get_my_role() IN ('ADMIN','BARBER'));
 
 -- SERVICES
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
@@ -204,8 +222,10 @@ DROP POLICY IF EXISTS "services_select" ON services;
 DROP POLICY IF EXISTS "services_insert" ON services;
 DROP POLICY IF EXISTS "services_update" ON services;
 CREATE POLICY "services_select" ON services FOR SELECT  USING (true);
-CREATE POLICY "services_insert" ON services FOR INSERT  WITH CHECK (get_my_role() = 'ADMIN');
-CREATE POLICY "services_update" ON services FOR UPDATE  USING (get_my_role() = 'ADMIN');
+DROP POLICY IF EXISTS "services_delete" ON services;
+CREATE POLICY "services_insert" ON services FOR INSERT  WITH CHECK (get_my_role() IN ('ADMIN','BARBER'));
+CREATE POLICY "services_update" ON services FOR UPDATE  USING (get_my_role() IN ('ADMIN','BARBER'));
+CREATE POLICY "services_delete" ON services FOR DELETE  USING (get_my_role() IN ('ADMIN','BARBER'));
 
 -- AVAILABILITY
 ALTER TABLE availability ENABLE ROW LEVEL SECURITY;
@@ -238,12 +258,24 @@ CREATE POLICY "apts_select" ON appointments FOR SELECT USING (
   OR get_my_role() = 'ADMIN'
 );
 CREATE POLICY "apts_insert" ON appointments FOR INSERT WITH CHECK (
-  client_id = auth.uid() OR get_my_role() = 'ADMIN'
+  client_id = auth.uid()
+  OR get_my_role() = 'ADMIN'
+  OR (
+    get_my_role() = 'BARBER'
+    AND barber_id = get_my_barber_id()
+    AND client_id IS NULL
+    AND guest_first_name IS NOT NULL AND btrim(guest_first_name) <> ''
+    AND guest_last_name IS NOT NULL AND btrim(guest_last_name) <> ''
+  )
 );
 CREATE POLICY "apts_update" ON appointments FOR UPDATE USING (
   client_id = auth.uid()
   OR barber_id = get_my_barber_id()
   OR get_my_role() = 'ADMIN'
+);
+DROP POLICY IF EXISTS "apts_delete" ON appointments;
+CREATE POLICY "apts_delete" ON appointments FOR DELETE USING (
+  barber_id = get_my_barber_id() OR get_my_role() = 'ADMIN'
 );
 
 -- PUSH (upsert richiede SELECT + INSERT + UPDATE separati)
@@ -271,12 +303,10 @@ INSERT INTO services (name, description, price, duration_minutes, sort_order) VA
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
--- NOTA: Per creare il primo Admin
--- 1. Registrati normalmente nell'app
--- 2. Esegui questa query sostituendo la tua email:
+-- NOTA: Ruolo ADMIN — solo da SQL su Supabase (non dall’app):
+--   UPDATE profiles SET role = 'ADMIN'
+--   WHERE id = (SELECT id FROM auth.users WHERE email = 'tua@email.it');
 --
--- UPDATE profiles SET role = 'ADMIN'
--- WHERE id = (SELECT id FROM auth.users WHERE email = 'tua@email.it');
---
--- Per creare un Barbiere dall'Admin, usa il pannello Admin nell'app.
+-- Barbieri (BARBER): creati da un altro barbiere o da un admin dall’app
+-- (Gestione salone / Dashboard), oppure promossi via SQL come sopra.
 -- ============================================================
