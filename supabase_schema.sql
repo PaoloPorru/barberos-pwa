@@ -106,49 +106,9 @@ RETURNS UUID AS $$
   SELECT id FROM public.barbers WHERE user_id = auth.uid();
 $$ LANGUAGE SQL SECURITY DEFINER STABLE SET search_path = public;
 
--- ============================================================
--- AUTO-CREATE PROFILE ON SIGNUP
--- ============================================================
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  fn text;
-  ln text;
-BEGIN
-  fn := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'first_name', '')), '');
-  ln := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'last_name', '')), '');
-  INSERT INTO public.profiles (id, first_name, last_name, email, phone, role)
-  VALUES (
-    NEW.id,
-    COALESCE(fn, 'Utente'),
-    COALESCE(ln, 'Nuovo'),
-    NEW.email,
-    NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'phone', '')), ''),
-    'CLIENT'
-  )
-  ON CONFLICT (id) DO NOTHING;
-  RETURN NEW;
-END;
-$$;
-
-ALTER FUNCTION public.handle_new_user() OWNER TO postgres;
-
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
-    GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
-    GRANT ALL ON TABLE public.profiles TO supabase_auth_admin;
-  END IF;
-END $$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- Profilo utente: creato dall’app (policy sotto), non da trigger su auth.users
+-- (evita errori su trigger e non richiede SQL su auth.users dal dashboard).
+-- Trigger opzionale: file supabase_optional_trigger_auth.sql
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -159,10 +119,11 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "profiles_select" ON profiles;
 DROP POLICY IF EXISTS "profiles_update" ON profiles;
 DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
+DROP POLICY IF EXISTS "profiles_insert_admin" ON profiles;
 CREATE POLICY "profiles_select" ON profiles FOR SELECT USING (true);
 CREATE POLICY "profiles_update" ON profiles FOR UPDATE USING (auth.uid() = id OR get_my_role() = 'ADMIN');
--- Fallback se il trigger su auth.users non ha creato la riga (stesso utente, stesso id)
 CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "profiles_insert_admin" ON profiles FOR INSERT WITH CHECK (get_my_role() = 'ADMIN');
 
 -- BARBERS
 ALTER TABLE barbers ENABLE ROW LEVEL SECURITY;

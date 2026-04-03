@@ -486,7 +486,7 @@ async function doReg(){
     const dbSave=/Database error saving new user|saving new user/i.test(msg);
     const isSrv=error.status===500||/500|unexpected|server|Internal/i.test(raw);
     if(dbSave||isSrv){
-      toast('Il database Supabase ha rifiutato la registrazione (trigger o permessi). SQL Editor → incolla ed esegui supabase_fix_signup.sql, poi riprova.', 'er');
+      toast('Registrazione rifiutata: spesso c’è ancora un trigger su auth.users. Rimuovilo con psql: scripts/run-sql.sh supabase_drop_trigger_auth.sql (vedi README).', 'er');
     }else{
       toast(msg,'er');
     }
@@ -498,22 +498,21 @@ async function doReg(){
       authTab('l');ge('le').value=em;
     }else{
       await loadProfile(data.user);
-      if(!ST.profile){
-        const {error:insErr}=await sb.from('profiles').insert({
-          id:data.user.id,
-          first_name:fn,
-          last_name:ln,
-          email:em,
-          phone:ph||null,
-          role:'CLIENT'
-        });
-        if(!insErr)await loadProfile(data.user);
-      }
       if(ST.profile){afterLogin();toast('Benvenuto, '+fn+'!');}
-      else{toast('Profilo non creato: esegui supabase_fix_signup.sql (e la policy profiles_insert_own) oppure controlla i log Postgres su Supabase.', 'er');}
+      else{toast('Profilo non creato: esegui supabase_schema.sql o supabase_fix_public.sql (policy profiles_insert_own) via psql se l’SQL Editor non risponde.', 'er');}
     }
   }
   btn.disabled=false; btn.textContent='Crea Account →';
+}
+
+async function ensureProfile(user){
+  const m=user.user_metadata||{};
+  const fn=(String(m.first_name||'').trim())||'Utente';
+  const ln=(String(m.last_name||'').trim())||'Nuovo';
+  const ph=String(m.phone||'').trim()||null;
+  const em=user.email||null;
+  const {error}=await sb.from('profiles').insert({id:user.id,first_name:fn,last_name:ln,email:em,phone:ph,role:'CLIENT'});
+  return !error||error.code==='23505';
 }
 
 async function loadProfile(user){
@@ -525,6 +524,11 @@ async function loadProfile(user){
     const row=res.data?.[0];
     if(row){data=row;break;}
     await new Promise(r=>setTimeout(r,300));
+  }
+  if(!data){
+    await ensureProfile(user);
+    const res=await sb.from('profiles').select('*').eq('id',user.id).limit(1);
+    if(!res.error)data=res.data?.[0]||null;
   }
   if(data&&user.email&&data.email!==user.email){
     await sb.from('profiles').update({email:user.email}).eq('id',user.id);
@@ -947,6 +951,8 @@ async function doAddBarber(wrap){
   }
   if(e2){toast(e2.message,'er');return;}
   if(d2?.user){
+    const {error:eIns}=await sb.from('profiles').insert({id:d2.user.id,first_name:fn,last_name:ln,email:em,phone:null,role:'CLIENT'});
+    if(eIns&&eIns.code!=='23505'){toast('Profilo barbiere: '+eIns.message,'er');return;}
     const {error:er}=await sb.from('profiles').update({role:'BARBER'}).eq('id',d2.user.id);
     if(er){toast('Ruolo barbiere: '+er.message,'er');return;}
     const {error:eb}=await sb.from('barbers').insert({user_id:d2.user.id,bio,color_hex:col});
@@ -1067,7 +1073,7 @@ async function init(){
     if(session?.user){
       await loadProfile(session.user);
       if(ST.profile){afterLogin();return;}
-      toast('Sessione senza profilo: esegui lo schema SQL o supabase_fix_signup.sql','er');
+      toast('Sessione senza profilo: applica supabase_schema.sql o supabase_fix_public.sql (psql se il dashboard non risponde).','er');
       await sb.auth.signOut();
     }
     showScreen('sa');

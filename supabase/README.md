@@ -1,6 +1,14 @@
 # Supabase — BarberOS
 
-Questa cartella consente il **deploy delle Edge Functions** con la [Supabase CLI](https://supabase.com/docs/guides/cli). Lo schema SQL del database resta nei file nella root del repo (`supabase_schema.sql`, ecc.) e va eseguito dall’SQL Editor del dashboard.
+Questa cartella consente il **deploy delle Edge Functions** con la [Supabase CLI](https://supabase.com/docs/guides/cli). Lo schema SQL del database resta nei file nella root del repo (`supabase_schema.sql`, ecc.): SQL Editor del dashboard **oppure** client **psql** sulla connection string del database (host `db.<ref>.supabase.co`, non `api.supabase.com`).
+
+### SQL Editor: "Failed to fetch" verso api.supabase.com
+
+È un problema di rete/browser verso l’API del dashboard, non della query. Applica gli script SQL con **psql**:
+
+1. **Project Settings → Database** → URI (Direct o Transaction), password del database.
+2. `export DATABASE_URL="postgresql://postgres.[ref]:PASSWORD@db.[ref].supabase.co:5432/postgres"`
+3. Dalla root del repo: `./scripts/run-sql.sh supabase_schema.sql` oppure `supabase_drop_trigger_auth.sql` / `supabase_fix_public.sql` come serve.
 
 ## Prerequisiti
 
@@ -77,7 +85,7 @@ Crea `supabase/.env.local` con le variabili necessarie (non committare).
 
 ## Registrazione: «Database error saving new user»
 
-Significa che il trigger su `auth.users` non riesce a fare `INSERT` in `public.profiles` (permessi `supabase_auth_admin`, trigger mancante o policy RLS in conflitto). Esegui dall’SQL Editor **tutto** il file `supabase_fix_signup.sql` nella root del repo e riprova la signup.
+Spesso indica un **trigger** ancora attivo su `auth.users` che fallisce. Rimuovilo con `./scripts/run-sql.sh supabase_drop_trigger_auth.sql` (vedi sopra). Lo schema aggiornato **non** crea quel trigger: l’app inserisce il profilo dopo l’accesso. Per policy mancanti: `supabase_fix_public.sql` o `supabase_schema.sql` via psql. Trigger opzionale: `supabase_optional_trigger_auth.sql`.
 
 ## `verify_jwt` e webhook
 

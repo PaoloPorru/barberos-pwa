@@ -26,7 +26,7 @@ Stack: **Supabase** (database + auth gratuito) + **Vercel** (hosting gratuito) +
 3. Copia tutto il contenuto del file `supabase_schema.sql` (include tabelle push, `reminder_sent`, colonna `email` profilo e RLS corrette)
 4. Incolla nell'editor e clicca **"Run"** (▶️)
 5. Dovresti vedere "Success" — il database è pronto con tutti i servizi di default
-6. Se la registrazione dà **"Database error saving new user"**, esegui anche **`supabase_fix_signup.sql`** (permessi trigger + colonna `email` se manca)
+6. Se la registrazione dà **"Database error saving new user"**, di solito c’è ancora un trigger su `auth.users`: con **psql** esegui `supabase_drop_trigger_auth.sql` (`./scripts/run-sql.sh supabase_drop_trigger_auth.sql` con `DATABASE_URL` da *Settings → Database*). Per policy mancanti usa `supabase_fix_public.sql` o l’intero `supabase_schema.sql`
 7. Se avevi già un DB vecchio senza v2, puoi comunque eseguire `supabase_schema_v2.sql` (è idempotente)
 
 ---

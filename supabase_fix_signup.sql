@@ -1,70 +1,34 @@
 -- ============================================================
--- BARBEROS — Fix registrazione
--- Errore tipico: "Database error saving new user" / unexpected_failure
--- Esegui TUTTO in Supabase → SQL Editor → Run
+-- BARBEROS — Fix registrazione (solo public, niente auth.users)
 -- ============================================================
+-- Lo schema principale NON usa più il trigger su auth.users: l’app
+-- crea la riga in profiles (policy profiles_insert_own + ensureProfile).
 --
--- Cause n°1: il trigger inserisce in profiles ma il ruolo interno di Auth
--- (supabase_auth_admin) non ha permesso su public.profiles → fallisce l'INSERT.
+-- Per nuovi progetti: esegui supabase_schema.sql (SQL Editor o psql).
 --
--- Cause n°2: SMTP / conferma email (Project Settings → Auth).
+-- Se l’SQL Editor dà "Failed to fetch" (api.supabase.com), usa il DB diretto:
+--   export DATABASE_URL="postgresql://postgres.[ref]:PASSWORD@db.[ref].supabase.co:5432/postgres"
+--   ./scripts/run-sql.sh supabase_fix_public.sql
 --
+-- Progetto vecchio con trigger che rompe la signup:
+--   ./scripts/run-sql.sh supabase_drop_trigger_auth.sql
+--
+-- Trigger automatico opzionale (solo se puoi eseguire SQL su auth.users):
+--   supabase_optional_trigger_auth.sql
 -- ============================================================
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
 
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  fn text;
-  ln text;
-BEGIN
-  fn := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'first_name', '')), '');
-  ln := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'last_name', '')), '');
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-  INSERT INTO public.profiles (id, first_name, last_name, email, phone, role)
-  VALUES (
-    NEW.id,
-    COALESCE(fn, 'Utente'),
-    COALESCE(ln, 'Nuovo'),
-    NEW.email,
-    NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'phone', '')), ''),
-    'CLIENT'
-  )
-  ON CONFLICT (id) DO NOTHING;
-
-  RETURN NEW;
-END;
-$$;
-
--- Proprietario postgres + permessi per Auth (hosted Supabase)
-ALTER FUNCTION public.handle_new_user() OWNER TO postgres;
-
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
-    GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
-    GRANT ALL ON TABLE public.profiles TO supabase_auth_admin;
-  END IF;
-END $$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
-
--- Policy di ripiego: l’utente autenticato può inserire solo la propria riga profilo
--- (se il trigger fallisce ma l’account Auth è stato creato, l’app può completare).
 DROP POLICY IF EXISTS "profiles_insert_own" ON public.profiles;
-CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+DROP POLICY IF EXISTS "profiles_insert_admin" ON public.profiles;
 
--- Se la riga sopra dà errore di sintassi, in Postgres ≤14 usa:
--- CREATE TRIGGER on_auth_user_created
---   AFTER INSERT ON auth.users
---   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+CREATE POLICY "profiles_insert_own" ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "profiles_insert_admin" ON public.profiles
+  FOR INSERT WITH CHECK (get_my_role() = 'ADMIN');
+
+-- Rimuovi trigger legacy (se l’editor funziona; altrimenti psql + supabase_drop_trigger_auth.sql)
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
