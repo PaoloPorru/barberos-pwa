@@ -59,6 +59,11 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
+-- Policy di ripiego: l’utente autenticato può inserire solo la propria riga profilo
+-- (se il trigger fallisce ma l’account Auth è stato creato, l’app può completare).
+DROP POLICY IF EXISTS "profiles_insert_own" ON public.profiles;
+CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- Se la riga sopra dà errore di sintassi, in Postgres ≤14 usa:
 -- CREATE TRIGGER on_auth_user_created
 --   AFTER INSERT ON auth.users

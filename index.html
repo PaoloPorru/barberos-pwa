@@ -486,7 +486,7 @@ async function doReg(){
     const dbSave=/Database error saving new user|saving new user/i.test(msg);
     const isSrv=error.status===500||/500|unexpected|server|Internal/i.test(raw);
     if(dbSave||isSrv){
-      toast('Registrazione bloccata dal database (profilo utente). In Supabase → SQL Editor esegui tutto supabase_fix_signup.sql (permessi trigger). Poi riprova.', 'er');
+      toast('Il database Supabase ha rifiutato la registrazione (trigger o permessi). SQL Editor → incolla ed esegui supabase_fix_signup.sql, poi riprova.', 'er');
     }else{
       toast(msg,'er');
     }
@@ -494,12 +494,23 @@ async function doReg(){
   else if(data.user){
     const {data:{session:s}}=await sb.auth.getSession();
     if(!s){
-      toast('Controlla la email e conferma l\'account, poi accedi.');
+      toast('Account creato. Apri l\'email e conferma, poi accedi da qui.');
       authTab('l');ge('le').value=em;
     }else{
       await loadProfile(data.user);
+      if(!ST.profile){
+        const {error:insErr}=await sb.from('profiles').insert({
+          id:data.user.id,
+          first_name:fn,
+          last_name:ln,
+          email:em,
+          phone:ph||null,
+          role:'CLIENT'
+        });
+        if(!insErr)await loadProfile(data.user);
+      }
       if(ST.profile){afterLogin();toast('Benvenuto, '+fn+'!');}
-      else{toast('Account creato ma profilo non trovato. Esegui supabase_fix_signup.sql in Supabase.','er');}
+      else{toast('Profilo non creato: esegui supabase_fix_signup.sql (e la policy profiles_insert_own) oppure controlla i log Postgres su Supabase.', 'er');}
     }
   }
   btn.disabled=false; btn.textContent='Crea Account →';

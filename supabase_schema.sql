@@ -156,23 +156,36 @@ CREATE TRIGGER on_auth_user_created
 
 -- PROFILES
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "profiles_select" ON profiles;
+DROP POLICY IF EXISTS "profiles_update" ON profiles;
+DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
 CREATE POLICY "profiles_select" ON profiles FOR SELECT USING (true);
 CREATE POLICY "profiles_update" ON profiles FOR UPDATE USING (auth.uid() = id OR get_my_role() = 'ADMIN');
+-- Fallback se il trigger su auth.users non ha creato la riga (stesso utente, stesso id)
+CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- BARBERS
 ALTER TABLE barbers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "barbers_select" ON barbers;
+DROP POLICY IF EXISTS "barbers_insert" ON barbers;
+DROP POLICY IF EXISTS "barbers_update" ON barbers;
 CREATE POLICY "barbers_select"  ON barbers FOR SELECT  USING (true);
 CREATE POLICY "barbers_insert"  ON barbers FOR INSERT  WITH CHECK (get_my_role() = 'ADMIN');
 CREATE POLICY "barbers_update"  ON barbers FOR UPDATE  USING (user_id = auth.uid() OR get_my_role() = 'ADMIN');
 
 -- SERVICES
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "services_select" ON services;
+DROP POLICY IF EXISTS "services_insert" ON services;
+DROP POLICY IF EXISTS "services_update" ON services;
 CREATE POLICY "services_select" ON services FOR SELECT  USING (true);
 CREATE POLICY "services_insert" ON services FOR INSERT  WITH CHECK (get_my_role() = 'ADMIN');
 CREATE POLICY "services_update" ON services FOR UPDATE  USING (get_my_role() = 'ADMIN');
 
 -- AVAILABILITY
 ALTER TABLE availability ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "avail_select" ON availability;
+DROP POLICY IF EXISTS "avail_all" ON availability;
 CREATE POLICY "avail_select" ON availability FOR SELECT  USING (true);
 CREATE POLICY "avail_all"    ON availability FOR ALL     USING (
   (SELECT user_id FROM barbers WHERE id = barber_id) = auth.uid()
@@ -181,6 +194,8 @@ CREATE POLICY "avail_all"    ON availability FOR ALL     USING (
 
 -- BLOCKED SLOTS
 ALTER TABLE blocked_slots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "blocked_select" ON blocked_slots;
+DROP POLICY IF EXISTS "blocked_all" ON blocked_slots;
 CREATE POLICY "blocked_select" ON blocked_slots FOR SELECT USING (true);
 CREATE POLICY "blocked_all"    ON blocked_slots FOR ALL    USING (
   (SELECT user_id FROM barbers WHERE id = barber_id) = auth.uid()
@@ -189,6 +204,9 @@ CREATE POLICY "blocked_all"    ON blocked_slots FOR ALL    USING (
 
 -- APPOINTMENTS
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "apts_select" ON appointments;
+DROP POLICY IF EXISTS "apts_insert" ON appointments;
+DROP POLICY IF EXISTS "apts_update" ON appointments;
 CREATE POLICY "apts_select" ON appointments FOR SELECT USING (
   client_id = auth.uid()
   OR barber_id = get_my_barber_id()
