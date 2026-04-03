@@ -407,6 +407,9 @@ verify_jwt = false
 [functions.create-team-barber]
 verify_jwt = true
 
+[functions.register-client]
+verify_jwt = false
+
 # Cron da Dashboard; Supabase inietra SUPABASE_* automaticamente.
 [functions.reminder]
 verify_jwt = true

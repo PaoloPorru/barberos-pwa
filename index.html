@@ -621,37 +621,35 @@ async function doReg(){
   if(!fn||!ln||!em||!pw){toast('Compila tutti i campi','er');return;}
   if(pw.length<8){toast('Password di almeno 8 caratteri','er');return;}
   const btn=ge('btnr'); btn.disabled=true; btn.textContent='Creazione...';
-  const {data,error}=await sb.auth.signUp({
-    email:em,
-    password:pw,
-    options:{
-      emailRedirectTo:getEmailRedirectUrl(),
-      data:{first_name:fn,last_name:ln,...(ph?{phone:ph}:{})}
-    }
-  });
+  let r,j;
+  try{
+    r=await fetch(SUPABASE_URL+'/functions/v1/register-client',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify({email:em,password:pw,first_name:fn,last_name:ln,...(ph?{phone:ph}:{})})
+    });
+    j=await r.json().catch(()=>({}));
+  }catch(e){toast('Errore di rete: '+e.message,'er');btn.disabled=false;btn.textContent='Crea Account →';return;}
+  if(!r.ok){
+    let m=j.error||('Errore '+r.status);
+    if(r.status===404)m='Funzione «register-client» assente: da terminale esegui «supabase functions deploy register-client» sul progetto.';
+    else if(/rate|limit|429/i.test(String(m)))m='Limite richieste: riprova tra qualche minuto o controlla i limiti su Supabase.';
+    else if(r.status===409||/already|exists|registered/i.test(String(m)))m='Questa email è già registrata. Accedi dalla scheda «Accedi».';
+    toast(m,'er');
+    btn.disabled=false;btn.textContent='Crea Account →';
+    return;
+  }
+  const {data,error}=await sb.auth.signInWithPassword({email:em,password:pw});
   if(error){
-    const msg=error.message||'';
-    const raw=msg+(error.status||'');
-    const dbSave=/Database error saving new user|saving new user/i.test(msg);
-    const isSrv=error.status===500||/500|unexpected|server|Internal/i.test(raw);
-    if(dbSave||isSrv){
-      toast('Registrazione rifiutata: il trigger sul profilo non riesce (permessi o SQL). Esegui supabase_schema.sql o supabase_optional_trigger_auth.sql; se il messaggio parla di duplicati, vedi supabase_drop_trigger_auth.sql.', 'er');
-    }else{
-      toast(msg,'er');
-    }
+    toast('Account creato ma accesso non riuscito: '+error.message+' Prova «Accedi» con la stessa password.','er');
+    authTab('l');ge('le').value=em;
+    btn.disabled=false;btn.textContent='Crea Account →';
+    return;
   }
-  else if(data.user){
-    const {data:{session:s}}=await sb.auth.getSession();
-    if(!s){
-      toast('Account creato: il profilo è già nel database (trigger Supabase). Controlla l’email per confermare, poi accedi da qui.');
-      authTab('l');ge('le').value=em;
-    }else{
-      await loadProfile(data.user);
-      if(ST.profile){afterLogin({welcomeOverride:'Benvenuto, '+fn+'! ✂️'});}
-      else{toast('Profilo assente: esegui supabase_schema.sql (trigger + policy) o supabase_backfill_profiles_from_auth.sql per utenti già registrati.', 'er');}
-    }
-  }
-  btn.disabled=false; btn.textContent='Crea Account →';
+  await loadProfile(data.user);
+  if(ST.profile){afterLogin({welcomeOverride:'Benvenuto, '+fn+'! ✂️'});}
+  else{toast('Profilo assente: esegui supabase_schema.sql (trigger + policy) o supabase_backfill_profiles_from_auth.sql.','er');}
+  btn.disabled=false;btn.textContent='Crea Account →';
 }
 
 async function ensureProfile(user){
@@ -1518,7 +1516,8 @@ async function doAddBarber(wrap){
   }catch(e){toast('Errore di rete: '+e.message,'er');return;}
   if(!r.ok){
     let m=j.error||('Errore '+r.status);
-    if(/rate|limit|429/i.test(String(m)))m='Troppe email inviate: deploya la funzione Edge «create-team-barber» (non usa più signUp). '+m;
+    if(r.status===404)m='404: deploya la funzione sul progetto Supabase → supabase functions deploy create-team-barber';
+    else if(/rate|limit|429/i.test(String(m)))m='Troppe richieste: verifica che create-team-barber sia deployata (non invia email). '+m;
     toast(m,'er');
     return;
   }
