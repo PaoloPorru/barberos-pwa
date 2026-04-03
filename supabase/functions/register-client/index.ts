@@ -1,15 +1,17 @@
-// Registrazione cliente senza email di conferma (admin.createUser + email_confirm: true).
-// Evita "Email rate limit exceeded" di Auth su signUp ripetuti.
+// Registrazione cliente: GoTrue POST /auth/v1/admin/users + email_confirm true (nessuna mail Auth).
 // Deploy: supabase functions deploy register-client
-// Dashboard: Verify JWT = OFF (chiamata solo con anon key dall’app).
+// Rate limit persistente: Dashboard Authentication - Providers - Email - disattiva Confirm email.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { adminCreateUserConfirmed, isEmailRateLimit } from "../_shared/adminCreateUser.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -48,6 +50,12 @@ serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
+  if (!EMAIL_RE.test(email)) {
+    return new Response(JSON.stringify({ error: "Email non valida" }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
   if (password.length < 8) {
     return new Response(JSON.stringify({ error: "Password di almeno 8 caratteri" }), {
       status: 400,
@@ -58,25 +66,26 @@ serve(async (req) => {
   const meta: Record<string, string> = { first_name, last_name };
   if (phone) meta.phone = phone;
 
-  const { data: created, error: cErr } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: meta,
-  });
-
-  if (cErr) {
-    const msg = cErr.message || "Registrazione fallita";
+  let uid: string;
+  try {
+    ({ id: uid } = await adminCreateUserConfirmed(supaUrl, serviceKey, email, password, meta));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const st = (e as Error & { status?: number }).status;
     const low = msg.toLowerCase();
-    const status =
-      low.includes("already") || low.includes("registered") || low.includes("exists") ? 409 : 400;
-    return new Response(JSON.stringify({ error: msg }), {
-      status,
+    const dup =
+      low.includes("already") || low.includes("registered") || low.includes("exists") ||
+      low.includes("duplicate");
+    const payload: Record<string, string> = { error: msg };
+    if (isEmailRateLimit(msg, st)) {
+      payload.hint =
+        "Supabase Dashboard: Authentication - Providers - Email - disattiva Confirm email. Attendi 1h o upgrade piano.";
+    }
+    return new Response(JSON.stringify(payload), {
+      status: dup ? 409 : isEmailRateLimit(msg, st) ? 429 : st && st >= 400 ? st : 400,
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
-
-  const uid = created.user!.id;
 
   const { error: upErr } = await supabase.from("profiles").upsert(
     { id: uid, first_name, last_name, email, phone, role: "CLIENT" },
