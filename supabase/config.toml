@@ -404,6 +404,9 @@ verify_jwt = true
 [functions.apt-client-action]
 verify_jwt = false
 
+[functions.create-team-barber]
+verify_jwt = true
+
 # Cron da Dashboard; Supabase inietra SUPABASE_* automaticamente.
 [functions.reminder]
 verify_jwt = true

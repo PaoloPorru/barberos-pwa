@@ -1,7 +1,7 @@
 // sw.js — BarberOS Service Worker
 // Gestisce: cache offline + Web Push Notifications
 
-const CACHE = 'barberos-v4';
+const CACHE = 'barberos-v5';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 const ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230a0a0a'/%3E%3Ctext y='140' x='20' font-size='140'%3E%E2%9C%82%EF%B8%8F%3C/text%3E%3C/svg%3E";
 

@@ -9,15 +9,15 @@
 <link rel="manifest" href="/manifest.json"/>
 <title>BarberOS</title>
 <style>
-:root{--bg:#0a0a0a;--surf:#141414;--card:#1c1c1c;--bdr:#2a2a2a;--gold:#c9a84c;--gdim:rgba(201,168,76,.1);--cream:#f0ebe0;--mut:#5a5a5a;--grn:#4caf78;--red:#e05c5c;--blu:#5c8fe0;--r:10px;--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px);--safe-r:env(safe-area-inset-right,0px);--nav-row-h:58px;}
+:root{--bg:#0a0a0a;--surf:#141414;--card:#1c1c1c;--bdr:#2a2a2a;--gold:#c9a84c;--gdim:rgba(201,168,76,.1);--cream:#f0ebe0;--mut:#5a5a5a;--grn:#4caf78;--red:#e05c5c;--blu:#5c8fe0;--r:10px;--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px);--safe-r:env(safe-area-inset-right,0px);--nav-row-h:58px;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--cream);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;}
-#shell{height:100dvh;max-height:100dvh;width:100%;max-width:min(430px,100%);margin:0 auto;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;position:relative;padding-left:var(--safe-l);padding-right:var(--safe-r);}
-.scr{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .2s;min-height:0;overflow:hidden;}
+#shell{height:100dvh;max-height:100dvh;width:100%;max-width:min(430px,100%);margin:0 auto;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;position:relative;padding-top:var(--safe-t);padding-left:var(--safe-l);padding-right:var(--safe-r);box-sizing:border-box;}
+.scr{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .2s;min-height:0;overflow:hidden;}
 .scr.on{opacity:1;pointer-events:all;}
 .scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:14px;overscroll-behavior-y:auto;touch-action:pan-y;}
 .scroll::-webkit-scrollbar{display:none;}
-.tb{display:flex;align-items:center;justify-content:space-between;padding:14px clamp(12px,4vw,18px) 12px;border-bottom:1px solid var(--bdr);flex-shrink:0;gap:8px;min-width:0;}
+.tb{display:flex;align-items:center;justify-content:space-between;padding:14px max(clamp(12px,4vw,18px),var(--safe-l)) 12px max(clamp(12px,4vw,18px),var(--safe-r));border-bottom:1px solid var(--bdr);flex-shrink:0;gap:8px;min-width:0;}
 .logo{font-family:Georgia,serif;font-size:clamp(17px,4.8vw,22px);letter-spacing:clamp(1px,0.6vw,3px);font-weight:700;flex-shrink:0;}
 .logo em{color:var(--gold);font-style:normal;}
 .tbsub{font-size:10px;color:var(--mut);letter-spacing:.5px;text-transform:uppercase;font-family:monospace;flex:1;min-width:0;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -91,7 +91,7 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + clamp(10px,2.
 .alogo{font-family:Georgia,serif;font-size:clamp(30px,10.5vw,68px);letter-spacing:clamp(1px,1.4vw,6px);line-height:1;text-align:center;z-index:1;font-weight:700;max-width:100%;padding:0 clamp(6px,3vw,16px);box-sizing:border-box;word-break:break-word;}
 .alogo em{color:var(--gold);font-style:normal;}
 .atag{color:var(--mut);font-size:clamp(12px,3.4vw,14px);text-align:center;margin-top:6px;z-index:1;max-width:min(22em,92vw);padding:0 8px;line-height:1.35;}
-.apanel{background:var(--surf);border-top:1px solid var(--bdr);border-radius:24px 24px 0 0;padding:20px clamp(16px,5vw,20px) max(28px,var(--safe-b));overflow-y:auto;max-height:min(78dvh,calc(100dvh - 120px));min-height:0;-webkit-overflow-scrolling:touch;touch-action:pan-y;transition:box-shadow .12s;}
+.apanel{background:var(--surf);border-top:1px solid var(--bdr);border-radius:24px 24px 0 0;padding:20px max(clamp(16px,5vw,20px),var(--safe-l)) max(28px,var(--safe-b)) max(clamp(16px,5vw,20px),var(--safe-r));overflow-y:auto;max-height:min(78dvh,calc(100dvh - 120px));min-height:0;-webkit-overflow-scrolling:touch;touch-action:pan-y;transition:box-shadow .12s;}
 .apanel.ptr-armed{box-shadow:inset 0 3px 0 0 var(--gold);}
 .ptr-hint{font-size:10px;color:var(--mut);text-align:center;margin:0 0 12px;font-family:monospace;letter-spacing:.2px;opacity:.72;line-height:1.35;}
 .brand-load{font-family:Georgia,serif;font-weight:700;letter-spacing:clamp(2px,1vw,4px);font-size:clamp(28px,10vw,48px);text-align:center;line-height:1;max-width:100%;padding:0 12px;}
@@ -100,11 +100,11 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + clamp(10px,2.
 .atab{flex:1;padding:9px;text-align:center;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;color:var(--mut);transition:all .18s;}
 .atab.on{background:var(--card);color:var(--cream);border:1px solid var(--bdr);}
 /* BOOKING */
-.bhdr{padding:16px 18px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.bhdr{padding:16px max(18px,var(--safe-l)) 14px max(18px,var(--safe-r));border-bottom:1px solid var(--bdr);flex-shrink:0;}
 .greet{color:var(--mut);font-size:14px;}
 .greet strong{color:var(--gold);}
 .sectit{font-size:28px;letter-spacing:2px;margin-top:2px;font-weight:700;font-family:Georgia,serif;}
-.steps{display:flex;align-items:center;padding:13px clamp(12px,4vw,18px) 11px;gap:6px;flex-shrink:0;border-bottom:1px solid var(--bdr);min-width:0;}
+.steps{display:flex;align-items:center;padding:13px max(clamp(12px,4vw,18px),var(--safe-l)) 11px max(clamp(12px,4vw,18px),var(--safe-r));gap:6px;flex-shrink:0;border-bottom:1px solid var(--bdr);min-width:0;}
 .sdot{width:8px;height:8px;border-radius:50%;background:var(--bdr);transition:all .2s;flex-shrink:0;}
 .sdot.dn{background:var(--gold);width:18px;border-radius:4px;}
 .sdot.ac{background:var(--gold);}
@@ -172,8 +172,8 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + clamp(10px,2.
 .msheet{width:100%;max-width:min(430px,100%);margin:0 auto;background:var(--surf);border-radius:20px 20px 0 0;border-top:1px solid var(--bdr);padding:8px 0 var(--safe-b);transform:translateY(100%);transition:transform .25s cubic-bezier(.32,.72,0,1);max-height:85dvh;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
 .mover.on .msheet{transform:translateY(0);}
 .mhnd{width:36px;height:4px;background:var(--bdr);border-radius:2px;margin:0 auto 14px;}
-.mtit{font-size:22px;letter-spacing:2px;padding:0 20px 14px;font-weight:700;font-family:Georgia,serif;}
-.mbody{padding:0 20px 32px;}
+.mtit{font-size:22px;letter-spacing:2px;padding:0 max(20px,var(--safe-l)) 14px max(20px,var(--safe-r));font-weight:700;font-family:Georgia,serif;}
+.mbody{padding:0 max(20px,var(--safe-l)) max(32px,var(--safe-b)) max(20px,var(--safe-r));}
 /* CALENDAR BUTTONS */
 .cal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
 /* NOTIFICATION PERMISSION */
@@ -1363,11 +1363,29 @@ async function rBdBarbersDesk(body){
   const btn=ap(pad,ce('button','btn btng'));btn.style.marginTop='4px';btn.textContent='+ Aggiungi barbiere';btn.onclick=mAddBarber;
 }
 async function removeBarberRow(bid,userId){
-  if(!await confirmDialog('Rimuovere questo barbiere dal team? Il profilo resta come cliente.','Team'))return;
+  const {data:others}=await sb.from('barbers').select('id').neq('id',bid).limit(1);
+  const targetId=others?.[0]?.id;
+  let msg='Rimuovere questo barbiere dal team? Il profilo utente resta nel sistema come cliente.';
+  if(targetId)msg+=' Tutti i suoi appuntamenti saranno riassegnati a un altro barbiere del salone.';
+  else msg+=' Se è l’unico barbiere con appuntamenti in archivio, non puoi rimuoverlo: cancella o completa prima gli appuntamenti.';
+  if(!await confirmDialog(msg,'Team'))return;
+  if(targetId){
+    const {error:er}=await sb.rpc('reassign_appointments_to_barber',{p_from:bid,p_to:targetId});
+    if(er){
+      const em=er.message||'';
+      if(/does not exist|reassign_appointments/i.test(em))toast('Esegui lo SQL «supabase_reassign_barber_rpc.sql» su Supabase (funzione RPC), poi riprova.','er');
+      else toast(em,'er');
+      return;
+    }
+  }else{
+    const {count,error:ce}=await sb.from('appointments').select('*',{count:'exact',head:true}).eq('barber_id',bid);
+    if(ce){toast(ce.message,'er');return;}
+    if((count||0)>0){toast('Ci sono appuntamenti collegati: aggiungi un altro barbiere al team per poterli riassegnare, oppure elimina i suoi appuntamenti.','er');return;}
+  }
   const {error}=await sb.from('barbers').delete().eq('id',bid);
   if(error){toast(error.message,'er');return;}
   await sb.from('profiles').update({role:'CLIENT'}).eq('id',userId);
-  toast('Barbiere rimosso dal salone');renderBarDesk();
+  toast('Barbiere rimosso dal salone');renderBarDesk();renderCal();renderApts();
 }
 const AV_DAY_IT=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 function timeInputVal(v){
@@ -1487,34 +1505,24 @@ function mAddBarber(){
 async function doAddBarber(wrap){
   const fn=(ge('nbfn').value||'').trim(),ln=(ge('nbln').value||'').trim(),em=(ge('nbem').value||'').trim(),pw=(ge('nbpw').value||'').trim(),bio=(ge('nbbio').value||'').trim(),col=wrap._col||'#c9a84c';
   if(!fn||!ln||!em||!pw){toast('Compila tutti i campi','er');return;}
-  const {data:{session:prevAdm}}=await sb.auth.getSession();
-  const {data:d2,error:e2}=await sb.auth.signUp({
-    email:em,
-    password:pw,
-    options:{emailRedirectTo:getEmailRedirectUrl(),data:{first_name:fn,last_name:ln}}
-  });
-  if(prevAdm?.refresh_token){
-    await sb.auth.setSession({access_token:prevAdm.access_token,refresh_token:prevAdm.refresh_token});
-    ST.user=prevAdm.user;
-    await loadProfile(prevAdm.user);
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token){toast('Sessione scaduta: esci e rientra.','er');return;}
+  let r,j;
+  try{
+    r=await fetch(SUPABASE_URL+'/functions/v1/create-team-barber',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':SUPABASE_KEY},
+      body:JSON.stringify({email:em,password:pw,first_name:fn,last_name:ln,bio:bio||'',color_hex:col})
+    });
+    j=await r.json().catch(()=>({}));
+  }catch(e){toast('Errore di rete: '+e.message,'er');return;}
+  if(!r.ok){
+    let m=j.error||('Errore '+r.status);
+    if(/rate|limit|429/i.test(String(m)))m='Troppe email inviate: deploya la funzione Edge «create-team-barber» (non usa più signUp). '+m;
+    toast(m,'er');
+    return;
   }
-  if(e2){toast(e2.message,'er');return;}
-  if(d2?.user){
-    const {error:eIns}=await sb.from('profiles').insert({id:d2.user.id,first_name:fn,last_name:ln,email:em,phone:null,role:'CLIENT'});
-    if(eIns&&eIns.code!=='23505'){toast('Profilo barbiere: '+eIns.message,'er');return;}
-    const {error:er}=await sb.from('profiles').update({role:'BARBER'}).eq('id',d2.user.id);
-    if(er){toast('Ruolo barbiere: '+er.message,'er');return;}
-    const {error:eb}=await sb.from('barbers').insert({user_id:d2.user.id,bio,color_hex:col});
-    if(eb){toast(eb.message,'er');return;}
-    const {data:bRow}=await sb.from('barbers').select('id').eq('user_id',d2.user.id).single();
-    const bid=bRow?.id;
-    if(!bid){toast('Errore: barbiere non creato','er');return;}
-    for(let d=1;d<=6;d++){
-      const {error:ea}=await sb.from('availability').insert({barber_id:bid,day_of_week:d,start_time:'09:00',end_time:'19:00'});
-      if(ea){toast('Disponibilità: '+ea.message,'er');return;}
-    }
-    closeModal();toast('Barbiere creato! Controlla email per conferma.');refreshStaffUI();
-  }
+  closeModal();toast('Barbiere creato. Accesso immediato con email e password temporanea (nessuna email di conferma).');refreshStaffUI();
 }
 function mAddSvc(){
   const body=openModal('Nuovo Servizio');
