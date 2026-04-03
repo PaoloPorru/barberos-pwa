@@ -137,9 +137,11 @@ html.has-nav #toast{bottom:calc(var(--nav-row-h) + var(--safe-b) + clamp(10px,2.
 .ddx{font-weight:600;font-size:14px;}
 .dmon2{font-size:8px;color:var(--mut);font-family:monospace;}
 .slgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
-.slt{padding:12px 4px;border-radius:8px;text-align:center;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--bdr);background:var(--card);color:var(--cream);transition:all .15s;font-family:monospace;}
+.slt{padding:12px 4px;border-radius:8px;text-align:center;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--bdr);background:var(--card);color:var(--cream);transition:all .15s;font-family:monospace;touch-action:manipulation;min-height:44px;display:flex;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none;}
 .slt:active{transform:scale(.9);}
 .slt.sel{background:var(--gold);border-color:var(--gold);color:#0a0a0a;}
+.cal-add{min-height:32px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--mut);cursor:pointer;border:1px dashed var(--bdr);border-radius:6px;touch-action:manipulation;background:rgba(201,168,76,.06);}
+.cal-add:active{opacity:.7;}
 .apc{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:15px;display:flex;gap:13px;align-items:flex-start;position:relative;overflow:hidden;}
 .apac{position:absolute;left:0;top:0;width:3px;height:100%;}
 .apdb{text-align:center;min-width:40px;}
@@ -699,6 +701,15 @@ function aptClientLabel(a){
     return ((a.guest_first_name||'')+' '+(a.guest_last_name||'')).trim()+' (ospite)';
   return '—';
 }
+function localISODate(d){
+  const y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+mo+'-'+day;
+}
+function parseLocalYMD(ymd){
+  const p=(ymd||'').split('-').map(Number);
+  if(p.length!==3||p.some(n=>Number.isNaN(n)))return null;
+  return new Date(p[0],p[1]-1,p[2],12,0,0,0);
+}
 
 // ═══════════════════════════════════════════════════════════
 // BOOKING WIZARD
@@ -756,34 +767,42 @@ function renderStepDate(body,bk){
   const today=new Date();today.setHours(0,0,0,0);
   for(let i=1;i<=28;i++){
     const d=new Date(today);d.setDate(today.getDate()+i);
-    const iso=d.toISOString().split('T')[0];
+    const iso=localISODate(d);
     const isSun=d.getDay()===0;
     const cell=ap(grid,ce('div','dcel'+(isSun?' dis':'')+(bk.date===iso?' sel':'')));
     ap(cell,ce('div','ddow',DAYS[d.getDay()]));ap(cell,ce('div','ddx',''+d.getDate()));ap(cell,ce('div','dmon2',MONTHS[d.getMonth()]));
     if(!isSun)cell.onclick=()=>{ST.bk.date=iso;ST.bk.slot=null;renderBook();};
+  }
+  if(bk.bar&&bk.svc){
+    const calBtn=ap(pad,ce('button','btn btng'));calBtn.style.cssText='margin-top:14px;width:100%';calBtn.type='button';calBtn.textContent='📅 Oppure: griglia settimanale (tocca subito giorno e ora)';
+    calBtn.onclick=()=>openBookingWeekGrid();
   }
 }
 async function renderStepSlot(body,bk){
   body.innerHTML='<div class="ctr"><div class="spin"></div></div>';
   const slots=await calcSlots(bk.bar.id,bk.date,bk.svc.duration_minutes);
   body.innerHTML='';
-  const d=new Date(bk.date+'T12:00:00');
-  const lbl=d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
+  const d0=parseLocalYMD(bk.date);
+  const lbl=d0&&!Number.isNaN(d0.getTime())?d0.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'}):(bk.date||'');
   const pad=ap(body,ce('div'));pad.style.padding='12px 14px 0';
   const inf=ap(pad,ce('div',null,lbl));inf.style.cssText='font-size:13px;color:var(--mut);margin-bottom:10px;text-transform:capitalize';
-  if(!slots.length){const em=ap(body,ce('div'));em.style.cssText='text-align:center;padding:40px 24px';ap(em,ce('div',null,'😕')).style.fontSize='40px';ap(em,ce('div',null,'Nessuno slot disponibile')).style.cssText='font-weight:600;margin-top:10px';ap(em,ce('div',null,'Prova un\'altra data o barbiere.')).style.cssText='font-size:13px;color:var(--mut);margin-top:6px';return;}
+  if(bk.bar&&bk.svc){
+    const calBtn=ap(pad,ce('button','btn btng'));calBtn.style.cssText='margin-bottom:12px;width:100%';calBtn.type='button';calBtn.textContent='📅 Griglia settimanale (tocca un orario)';calBtn.onclick=()=>openBookingWeekGrid();
+  }
+  if(!slots.length){const em=ap(body,ce('div'));em.style.cssText='text-align:center;padding:40px 24px';ap(em,ce('div',null,'😕')).style.fontSize='40px';ap(em,ce('div',null,'Nessuno slot disponibile')).style.cssText='font-weight:600;margin-top:10px';ap(em,ce('div',null,'Prova un\'altra data o barbiere, oppure la griglia sopra.')).style.cssText='font-size:13px;color:var(--mut);margin-top:6px';return;}
   const grid=ap(pad,ce('div','slgrid'));
   slots.forEach(sl=>{
-    const btn=ap(grid,ce('div','slt'+(bk.slot?.label===sl.label?' sel':'')));
+    const btn=ap(grid,ce('div','slt'+(bk.slot?.start===sl.start?' sel':'')));
     btn.textContent=sl.label;
-    btn.onclick=()=>{ST.bk.slot=sl;renderBook();};
+    btn.setAttribute('role','button');
+    btn.onclick=()=>{ST.bk.slot=sl;ST.bk.step=5;renderBook();ge('bbody').scrollTop=0;};
   });
 }
 function renderStepConfirm(body,bk){
   body.innerHTML='';
   const pad=ap(body,ce('div'));pad.style.padding='14px';
   const card=ap(pad,ce('div','card'));
-  const d=new Date(bk.date+'T12:00:00');
+  const d=parseLocalYMD(bk.date)||new Date();
   const dlbl=d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const rows=[['Servizio',bk.svc.name],['Barbiere',bk.bar.fn+' '+bk.bar.ln],['Data',dlbl],['Orario',bk.slot.label],['Durata',bk.svc.duration_minutes+' min']];
   rows.forEach(([l,v],i)=>{const row=ap(card,ce('div','crow'));ap(row,ce('span','crlbl',l));const val=ap(row,ce('span','crval',v));if(i===2)val.style.textTransform='capitalize';});
@@ -794,8 +813,15 @@ function renderStepConfirm(body,bk){
   const info=ap(pad,ce('div','card'));info.style.cssText='margin-top:11px;background:rgba(201,168,76,.05);border-color:rgba(201,168,76,.2)';
   const p=ap(info,ce('p'));p.style.cssText='font-size:11px;color:var(--gold);font-family:monospace';p.textContent='✉️ Riceverai email di conferma + promemoria 24h prima';
 }
+function padTimeHMS(t){
+  const s=String(t||'09:00:00').trim();
+  if(s.length>=8)return s.slice(0,8);
+  if(s.length===5)return s+':00';
+  return s+':00:00'.slice(0,8);
+}
 async function calcSlots(barber_id,date,duration){
-  const d=new Date(date+'T12:00:00');
+  const d=parseLocalYMD(date);
+  if(!d||Number.isNaN(d.getTime()))return[];
   const dow=d.getDay();
   const {data:avRows}=await sb.from('availability').select('start_time,end_time').eq('barber_id',barber_id).eq('day_of_week',dow).eq('is_active',true);
   if(!avRows?.length)return[];
@@ -803,13 +829,16 @@ async function calcSlots(barber_id,date,duration){
   const {data:blocked}=await sb.from('blocked_slots').select('start_datetime,end_datetime').eq('barber_id',barber_id).gte('start_datetime',date+'T00:00:00').lte('start_datetime',date+'T23:59:59');
   const busy=[...(existing||[]),...(blocked||[])].map(r=>({s:new Date(r.start_datetime),e:new Date(r.end_datetime)}));
   const now=Date.now();const slots=[];
+  const y=d.getFullYear(),mo=d.getMonth(),day=d.getDate();
   for(const av of avRows){
-    let cur=new Date(date+'T'+av.start_time);
-    const fin=new Date(date+'T'+av.end_time);
+    const st=padTimeHMS(av.start_time),en=padTimeHMS(av.end_time);
+    let cur=new Date(y,mo,day,parseInt(st.slice(0,2),10),parseInt(st.slice(3,5),10),parseInt(st.slice(6,8)||'0',10),0);
+    const fin=new Date(y,mo,day,parseInt(en.slice(0,2),10),parseInt(en.slice(3,5),10),parseInt(en.slice(6,8)||'0',10),0);
     while(cur<fin){
       const se=new Date(cur.getTime()+duration*60000);
       if(se>fin)break;
-      if(cur.getTime()>now&&!busy.some(b=>cur<b.e&&se>b.s))slots.push({start:cur.toISOString(),end:se.toISOString(),label:cur.toTimeString().slice(0,5)});
+      const hh=String(cur.getHours()).padStart(2,'0'),mm=String(cur.getMinutes()).padStart(2,'0');
+      if(cur.getTime()>now&&!busy.some(b=>cur<b.e&&se>b.s))slots.push({start:cur.toISOString(),end:se.toISOString(),label:hh+':'+mm});
       cur=se;
     }
   }
@@ -949,23 +978,111 @@ async function renderCal(){
   const DN=['Lu','Ma','Me','Gi','Ve','Sa','Do'];
   const hdr=ge('cdhdr');hdr.innerHTML='';ap(hdr,ce('div'));
   days.forEach(d=>{const isT=d.toDateString()===new Date().toDateString();ap(hdr,ce('div','cdlbl'+(isT?' td':''),DN[(d.getDay()+6)%7]+' '+d.getDate()));});
-  const dF=days[0].toISOString().split('T')[0],dT=days[2].toISOString().split('T')[0];
+  const dF=localISODate(days[0]),dT=localISODate(days[2]);
   const {data:apts}=await sb.from('appointments').select('*, services(name,duration_minutes), profiles!appointments_client_id_fkey(first_name,last_name)').eq('barber_id',b.id).neq('status','CANCELLED').gte('start_datetime',dF+'T00:00:00').lte('start_datetime',dT+'T23:59:59');
   const grid=ge('cgrid');grid.innerHTML='';
   const HOURS=[9,10,11,12,13,14,15,16,17,18];
   HOURS.forEach(h=>{
     ap(grid,ce('div','chrl',h+':00'));
     days.forEach(d=>{
-      const ds=d.toISOString().split('T')[0];
+      const ds=localISODate(d);
       const cell=ap(grid,ce('div','ccel'));
-      (apts||[]).filter(a=>a.start_datetime.startsWith(ds)&&new Date(a.start_datetime).getHours()===h).forEach(a=>{
+      const here=(apts||[]).filter(a=>a.start_datetime.startsWith(ds)&&new Date(a.start_datetime).getHours()===h);
+      here.forEach(a=>{
         const div=ap(cell,ce('div','capt'));div.style.background=b.color_hex+'22';div.style.borderLeft='3px solid '+b.color_hex;
         ap(div,ce('div','captn',aptClientLabel(a)));
         ap(div,ce('div','capts',a.services?.name||'?'));
         div.onclick=()=>showAptDetail(a);
       });
+      if(!here.length&&ST.profile?.role==='BARBER'&&ST.barber?.id===b.id){
+        const add=ap(cell,ce('div','cal-add'));add.textContent='+';add.title='Nuovo appuntamento';
+        add.onclick=e=>{e.stopPropagation();openCalQuickBook(b.id,ds,h);};
+      }
     });
   });
+}
+async function openCalQuickBook(barberId,ds,h){
+  const body=openModal('Nuovo da calendario');
+  const wrap=ap(body,ce('div'));wrap.style.cssText='display:flex;flex-direction:column;gap:11px';
+  ap(wrap,ce('label','lbl','Servizio'));
+  const ssel=ap(wrap,ce('select','inp'));ssel.id='cqsvc';
+  const {data:svcs}=await sb.from('services').select('*').eq('is_active',true).order('sort_order');
+  if(!svcs?.length){wrap.innerHTML='<p style="color:var(--mut)">Nessun servizio attivo.</p>';return;}
+  svcs.forEach(sv=>{const o=ce('option',null,sv.name+' · €'+sv.price);o.value=sv.id;ap(ssel,o);});
+  const hint=ap(wrap,ce('div',null,''));hint.id='cqhint';hint.style.cssText='font-size:12px;color:var(--mut)';
+  const r1=ap(wrap,ce('div','gr2'));
+  const c1=ap(r1,ce('div'));ap(c1,ce('label','lbl','Nome'));ap(c1,ce('input','inp')).id='cqfn';
+  const c2=ap(r1,ce('div'));ap(c2,ce('label','lbl','Cognome'));ap(c2,ce('input','inp')).id='cqln';
+  ap(wrap,ce('label','lbl','Stato'));
+  const st=ap(wrap,ce('select','inp'));st.id='cqst';[['PENDING','In attesa'],['CONFIRMED','Confermato']].forEach(([v,t])=>{const o=ce('option',null,t);o.value=v;ap(st,o);});
+  ap(wrap,ce('label','lbl','Note'));const nt=ap(wrap,ce('textarea','inp'));nt.id='cqnt';nt.rows=2;nt.style.resize='none';
+  let chosen=null;
+  async function updSlot(){
+    const sv=svcs.find(x=>x.id===ssel.value);if(!sv)return;
+    const slots=await calcSlots(barberId,ds,sv.duration_minutes);
+    chosen=slots.find(sl=>new Date(sl.start).getHours()===h)||null;
+    hint.textContent=chosen?('Orario: '+chosen.label+' · '+ds):('Nessuno slot libero alle '+h+':00 per questo servizio.');
+  }
+  ssel.onchange=updSlot;
+  await updSlot();
+  const btn=ap(wrap,ce('button','btn btnp'));btn.textContent='Crea';btn.onclick=async()=>{
+    const sv=svcs.find(x=>x.id===ssel.value),gfn=(ge('cqfn').value||'').trim(),gln=(ge('cqln').value||'').trim(),stt=ge('cqst').value,notes=ge('cqnt').value||'';
+    if(!gfn||!gln){toast('Nome e cognome obbligatori','er');return;}
+    if(!chosen){toast('Nessuno slot valido per questa combinazione','er');return;}
+    const {error}=await sb.from('appointments').insert({
+      client_id:null,barber_id:barberId,service_id:sv.id,
+      start_datetime:chosen.start,end_datetime:chosen.end,
+      status:stt,price_snapshot:sv.price,notes,
+      guest_first_name:gfn,guest_last_name:gln
+    });
+    if(error){toast(error.message,'er');return;}
+    closeModal();renderCal();toast('Appuntamento creato');
+  };
+}
+let _bwOff=0;
+async function openBookingWeekGrid(){
+  const bk=ST.bk;
+  if(!bk.bar||!bk.svc){toast('Scegli prima servizio e barbiere','er');return;}
+  const mbody=openModal('Scegli orario');
+  const root=ap(mbody,ce('div'));
+  async function paint(){
+    root.innerHTML='';
+    const nav=ap(root,ce('div'));nav.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px';
+    const pr=ap(nav,ce('button','btn btng btnsm'));pr.type='button';pr.textContent='‹ Sett.';pr.onclick=()=>{_bwOff--;paint();};
+    const nx=ap(nav,ce('button','btn btng btnsm'));nx.type='button';nx.textContent='Sett. ›';nx.onclick=()=>{_bwOff++;paint();};
+    const today=new Date();today.setHours(0,0,0,0);
+    const ws=new Date(today);const off=today.getDay()===0?-6:1-today.getDay();ws.setDate(today.getDate()+off+7*_bwOff);
+    const days=[0,1,2,3,4,5,6].map(i=>{const x=new Date(ws);x.setDate(ws.getDate()+i);return x;});
+    const slotCache={};
+    for(const d of days){
+      const ds=localISODate(d);
+      slotCache[ds]=await calcSlots(bk.bar.id,ds,bk.svc.duration_minutes);
+    }
+    const g=ap(root,ce('div'));g.style.cssText='display:grid;grid-template-columns:40px repeat(7,minmax(0,1fr));gap:3px;font-size:10px;overflow-x:auto';
+    ap(g,ce('div'));
+    days.forEach(d=>{
+      const lab=ap(g,ce('div'));lab.style.cssText='text-align:center;padding:6px 2px;background:var(--card);border-radius:6px;font-family:monospace';
+      lab.textContent=(DAYS[(d.getDay()+6)%7]||'').slice(0,2)+' '+d.getDate();
+    });
+    const HOURS=[9,10,11,12,13,14,15,16,17,18];
+    HOURS.forEach(h=>{
+      ap(g,ce('div',null,h+'')).style.cssText='text-align:right;padding:6px 2px;color:var(--mut);font-family:monospace';
+      days.forEach(d=>{
+        const ds=localISODate(d);
+        const cel=ap(g,ce('div'));cel.style.cssText='min-height:40px;border:1px solid var(--bdr);border-radius:6px;background:var(--surf);display:flex;align-items:center;justify-content:center';
+        const match=(slotCache[ds]||[]).find(sl=>new Date(sl.start).getHours()===h);
+        if(match){
+          cel.style.background='rgba(201,168,76,.2)';cel.style.cursor='pointer';cel.style.fontWeight='600';cel.textContent=match.label;
+          cel.onclick=()=>{
+            ST.bk.date=ds;ST.bk.slot=match;ST.bk.step=5;
+            closeModal();renderBook();ge('bbody').scrollTop=0;
+          };
+        }
+      });
+    });
+  }
+  _bwOff=0;
+  await paint();
 }
 function showAptDetail(a){
   const mbody=ge('mbody');mbody.innerHTML='';
@@ -1014,7 +1131,7 @@ async function renderAdmin(){
 async function rAdmStats(body){
   const [{count:total},{count:today},{data:rev},{count:clients}]=await Promise.all([
     sb.from('appointments').select('*',{count:'exact',head:true}).neq('status','CANCELLED'),
-    sb.from('appointments').select('*',{count:'exact',head:true}).neq('status','CANCELLED').gte('start_datetime',new Date().toISOString().split('T')[0]),
+    sb.from('appointments').select('*',{count:'exact',head:true}).neq('status','CANCELLED').gte('start_datetime',localISODate(new Date())),
     sb.from('appointments').select('price_snapshot').eq('status','COMPLETED'),
     sb.from('profiles').select('*',{count:'exact',head:true}).eq('role','CLIENT')
   ]);
@@ -1175,7 +1292,7 @@ async function rBdWalkIn(body){
   const c1=ap(r1,ce('div'));ap(c1,ce('label','lbl','Nome cliente'));ap(c1,ce('input','inp')).id='wigfn';
   const c2=ap(r1,ce('div'));ap(c2,ce('label','lbl','Cognome'));ap(c2,ce('input','inp')).id='wigln';
   ap(pad,ce('label','lbl','Data'));
-  const din=ap(pad,ce('input','inp'));din.type='date';din.id='widt';const tmr=new Date();tmr.setDate(tmr.getDate()+1);din.value=tmr.toISOString().split('T')[0];
+  const din=ap(pad,ce('input','inp'));din.type='date';din.id='widt';const tmr=new Date();tmr.setDate(tmr.getDate()+1);din.value=localISODate(tmr);
   ap(pad,ce('label','lbl','Orario'));
   const slotWrap=ap(pad,ce('div'));slotWrap.id='wislots';slotWrap.innerHTML='<div class="ctr"><div class="spin"></div></div>';
   const relSlots=async()=>{
