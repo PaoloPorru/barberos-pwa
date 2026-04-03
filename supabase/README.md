@@ -85,7 +85,7 @@ Crea `supabase/.env.local` con le variabili necessarie (non committare).
 
 ## Registrazione: «Database error saving new user»
 
-Spesso indica un **trigger** ancora attivo su `auth.users` che fallisce. Rimuovilo con `./scripts/run-sql.sh supabase_drop_trigger_auth.sql` (vedi sopra). Lo schema aggiornato **non** crea quel trigger: l’app inserisce il profilo dopo l’accesso. Per policy mancanti: `supabase_fix_public.sql` o `supabase_schema.sql` via psql. Trigger opzionale: `supabase_optional_trigger_auth.sql`.
+Se compare durante la **signup**, di solito il **trigger** su `auth.users` non può inserire in `profiles` (permessi `supabase_auth_admin`, RLS). Esegui l’intero `supabase_schema.sql` (include trigger + grant). Se un trigger vecchio è corrotto, rimuovilo con `supabase_drop_trigger_auth.sql` e ricrea con `supabase_optional_trigger_auth.sql`. Utenti già in Auth senza profilo: `supabase_backfill_profiles_from_auth.sql`.
 
 ## `verify_jwt` e webhook
 

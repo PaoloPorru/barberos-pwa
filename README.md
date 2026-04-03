@@ -23,10 +23,10 @@ Stack: **Supabase** (database + auth gratuito) + **Vercel** (hosting gratuito) +
 
 1. Nel pannello Supabase, vai su **SQL Editor** (icona nella sidebar)
 2. Clicca **"New Query"**
-3. Copia tutto il contenuto del file `supabase_schema.sql` (include tabelle push, `reminder_sent`, colonna `email` profilo e RLS corrette)
+3. Copia tutto il contenuto del file `supabase_schema.sql` (include trigger che crea il profilo a ogni nuovo utente Auth, tabelle push, `reminder_sent`, colonna `email` e RLS)
 4. Incolla nell'editor e clicca **"Run"** (▶️)
 5. Dovresti vedere "Success" — il database è pronto con tutti i servizi di default
-6. Se la registrazione dà **"Database error saving new user"**, di solito c’è ancora un trigger su `auth.users`: con **psql** esegui `supabase_drop_trigger_auth.sql` (`./scripts/run-sql.sh supabase_drop_trigger_auth.sql` con `DATABASE_URL` da *Settings → Database*). Per policy mancanti usa `supabase_fix_public.sql` o l’intero `supabase_schema.sql`
+6. Se la registrazione dà **"Database error saving new user"**, riesegui da zero la sezione trigger di `supabase_schema.sql` (o `supabase_optional_trigger_auth.sql`) così `supabase_auth_admin` ha i permessi corretti. Solo se hai un trigger duplicato/corrotto: `supabase_drop_trigger_auth.sql` poi ricrea il trigger. Utenti già registrati senza profilo: `supabase_backfill_profiles_from_auth.sql`
 7. Se avevi già un DB vecchio senza v2, puoi comunque eseguire `supabase_schema_v2.sql` (è idempotente)
 
 ---

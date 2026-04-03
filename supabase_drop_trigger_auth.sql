@@ -1,4 +1,6 @@
--- Rimuove il trigger su auth.users (se esiste ancora da uno schema vecchio).
+-- Rimuove il trigger su auth.users. Attenzione: senza trigger, con conferma
+-- email attiva i nuovi utenti non avranno profilo finché non accedono (ensureProfile).
+-- Preferibile tenere il trigger incluso in supabase_schema.sql.
 -- NON passa da api.supabase.com: usa psql con la connection string del DATABASE.
 -- Dashboard → Project Settings → Database → Connection string → URI (Direct o Transaction).
 --

@@ -562,7 +562,7 @@ async function doReg(){
     const dbSave=/Database error saving new user|saving new user/i.test(msg);
     const isSrv=error.status===500||/500|unexpected|server|Internal/i.test(raw);
     if(dbSave||isSrv){
-      toast('Registrazione rifiutata: spesso c’è ancora un trigger su auth.users. Rimuovilo con psql: scripts/run-sql.sh supabase_drop_trigger_auth.sql (vedi README).', 'er');
+      toast('Registrazione rifiutata: il trigger sul profilo non riesce (permessi o SQL). Esegui supabase_schema.sql o supabase_optional_trigger_auth.sql; se il messaggio parla di duplicati, vedi supabase_drop_trigger_auth.sql.', 'er');
     }else{
       toast(msg,'er');
     }
@@ -570,12 +570,12 @@ async function doReg(){
   else if(data.user){
     const {data:{session:s}}=await sb.auth.getSession();
     if(!s){
-      toast('Account creato. Controlla l’email: il link di conferma apre l’app sul dominio pubblico (imposta APP_PUBLIC_URL se usi localhost).');
+      toast('Account creato: il profilo è già nel database (trigger Supabase). Controlla l’email per confermare, poi accedi da qui.');
       authTab('l');ge('le').value=em;
     }else{
       await loadProfile(data.user);
       if(ST.profile){afterLogin({welcomeOverride:'Benvenuto, '+fn+'! ✂️'});}
-      else{toast('Profilo non creato: esegui supabase_schema.sql o supabase_fix_public.sql (policy profiles_insert_own) via psql se l’SQL Editor non risponde.', 'er');}
+      else{toast('Profilo assente: esegui supabase_schema.sql (trigger + policy) o supabase_backfill_profiles_from_auth.sql per utenti già registrati.', 'er');}
     }
   }
   btn.disabled=false; btn.textContent='Crea Account →';

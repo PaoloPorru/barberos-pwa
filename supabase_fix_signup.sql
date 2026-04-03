@@ -1,8 +1,10 @@
 -- ============================================================
--- BARBEROS — Fix registrazione (solo public, niente auth.users)
+-- BARBEROS — Fix registrazione (policy profili, schema public)
 -- ============================================================
--- Lo schema principale NON usa più il trigger su auth.users: l’app
--- crea la riga in profiles (policy profiles_insert_own + ensureProfile).
+-- Lo schema completo (supabase_schema.sql) include il trigger su auth.users
+-- che crea il profilo alla signup (necessario se c’è conferma email).
+-- Questo file aggiorna solo le policy INSERT; per il trigger usa
+-- supabase_optional_trigger_auth.sql o l’intero schema.
 --
 -- Per nuovi progetti: esegui supabase_schema.sql (SQL Editor o psql).
 --

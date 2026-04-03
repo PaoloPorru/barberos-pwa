@@ -1,7 +1,5 @@
--- Opzionale: profilo creato automaticamente su ogni nuovo utente Auth.
--- Richiede SQL Editor funzionante (o psql sul DB con permessi su auth.users).
--- Se la registrazione dà "Database error saving new user", NON usare questo:
--- lascia solo le policy in supabase_schema.sql e l’app crea il profilo.
+-- Il trigger su auth.users è incluso in supabase_schema.sql.
+-- Usa questo file solo se hai rimosso il trigger e vuoi riattivarlo senza rieseguire tutto lo schema.
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -10,18 +8,34 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  rowj jsonb;
+  meta jsonb;
+  em text;
   fn text;
   ln text;
 BEGIN
-  fn := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'first_name', '')), '');
-  ln := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'last_name', '')), '');
+  SELECT to_jsonb(t) INTO rowj FROM auth.users AS t WHERE t.id = NEW.id;
+  IF rowj IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  meta := COALESCE(
+    rowj->'raw_user_meta_data',
+    rowj->'raw_user_metadata',
+    rowj->'user_metadata',
+    '{}'::jsonb
+  );
+  em := NULLIF(TRIM(COALESCE(rowj->>'email', '')), '');
+  fn := NULLIF(TRIM(COALESCE(meta->>'first_name', '')), '');
+  ln := NULLIF(TRIM(COALESCE(meta->>'last_name', '')), '');
+
   INSERT INTO public.profiles (id, first_name, last_name, email, phone, role)
   VALUES (
     NEW.id,
     COALESCE(fn, 'Utente'),
     COALESCE(ln, 'Nuovo'),
-    NEW.email,
-    NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'phone', '')), ''),
+    em,
+    NULLIF(TRIM(COALESCE(meta->>'phone', '')), ''),
     'CLIENT'
   )
   ON CONFLICT (id) DO NOTHING;
