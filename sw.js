@@ -1,7 +1,7 @@
 // sw.js — BarberOS Service Worker
 // Gestisce: cache offline + Web Push Notifications
 
-const CACHE = 'barberos-v3';
+const CACHE = 'barberos-v4';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 const ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230a0a0a'/%3E%3Ctext y='140' x='20' font-size='140'%3E%E2%9C%82%EF%B8%8F%3C/text%3E%3C/svg%3E";
 
@@ -21,9 +21,14 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// ── FETCH (network-first, fallback cache) ────────────────────
+// ── FETCH (solo stesso origine: evita interferenze con blob/download e link esterni in PWA)
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const u = e.request.url;
+  if (u.startsWith('blob:') || u.startsWith('data:')) return;
+  let originOk = false;
+  try { originOk = new URL(u).origin === self.location.origin; } catch (_) {}
+  if (!originOk) return;
   e.respondWith(
     fetch(e.request)
       .then(res => {

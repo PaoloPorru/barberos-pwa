@@ -491,30 +491,57 @@ function localNotify(title, body, url){
 // 📅 CALENDAR SYNC
 // ═══════════════════════════════════════════════════════════
 
-// Genera file .ics (iCalendar) per Apple Calendar / Outlook
+function icsEscapeText(s){
+  return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+}
+function aptCalendarParticipants(apt){
+  const bfn=apt.barbers?.profiles?.first_name||'',bln=apt.barbers?.profiles?.last_name||'';
+  let barberName=(bfn+' '+bln).trim()||'Barbiere';
+  let barberEm=String(apt.barbers?.profiles?.email||'').trim();
+  let clientName='',clientEm='';
+  if(apt.client_id&&apt.profiles){
+    clientName=((apt.profiles.first_name||'')+' '+(apt.profiles.last_name||'')).trim();
+    clientEm=String(apt.profiles.email||'').trim();
+  }else{
+    clientName=((apt.guest_first_name||'')+' '+(apt.guest_last_name||'')).trim()||'Cliente';
+    clientEm=String(apt.guest_email||'').trim();
+  }
+  if(ST.user&&apt.client_id===ST.user.id){
+    if(!clientEm&&ST.user.email)clientEm=String(ST.user.email).trim();
+    if(!clientName&&ST.profile)clientName=((ST.profile.first_name||'')+' '+(ST.profile.last_name||'')).trim()||clientName;
+  }
+  if(ST.barber&&apt.barber_id===ST.barber.id&&ST.user){
+    if(!barberEm&&ST.user.email)barberEm=String(ST.user.email).trim();
+    if((barberName==='Barbiere'||!barberName)&&ST.profile)barberName=((ST.profile.first_name||'')+' '+(ST.profile.last_name||'')).trim()||barberName;
+  }
+  return{barberName,barberEm,clientName,clientEm};
+}
 function generateICS(apt){
-  const svc  = apt.services;
-  const bfn  = apt.barbers?.profiles?.first_name || '';
-  const bln  = apt.barbers?.profiles?.last_name  || '';
-  const start = new Date(apt.start_datetime);
-  const end   = new Date(apt.end_datetime);
-  const fmt   = d => d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-  const uid   = apt.id + '@barberos.app';
-  const ics = [
+  const svc=apt.services;
+  const{barberName,barberEm,clientName,clientEm}=aptCalendarParticipants(apt);
+  const start=new Date(apt.start_datetime);
+  const end=new Date(apt.end_datetime);
+  const fmt=d=>d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const uid=apt.id+'@barberos.app';
+  const lines=[
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//BarberOS//IT',
     'CALSCALE:GREGORIAN',
-    'METHOD:REQUEST',
+    'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     'UID:'+uid,
     'DTSTART:'+fmt(start),
     'DTEND:'+fmt(end),
-    'SUMMARY:✂️ '+svc?.name+' da '+bfn+' '+bln,
-    'DESCRIPTION:Appuntamento barberia BarberOS\\nServizio: '+svc?.name+'\\nBarbiere: '+bfn+' '+bln+'\\nPrezzo: €'+apt.price_snapshot,
-    'LOCATION:Barberia',
+    'SUMMARY:'+icsEscapeText('✂️ '+svc?.name+' · '+clientName+' / '+barberName),
+    'DESCRIPTION:'+icsEscapeText('BarberOS\\nServizio: '+(svc?.name||'')+'\\nCliente: '+clientName+(clientEm?' ('+clientEm+')':'')+'\\nBarbiere: '+barberName+(barberEm?' ('+barberEm+')':'')+'\\nPrezzo: €'+apt.price_snapshot),
+    'LOCATION:'+icsEscapeText('Barberia'),
     'STATUS:CONFIRMED',
-    'TRANSP:OPAQUE',
+    'TRANSP:OPAQUE'
+  ];
+  if(clientEm)lines.push('ATTENDEE;CN='+icsEscapeText(clientName)+';RSVP=TRUE:mailto:'+clientEm);
+  if(barberEm)lines.push('ATTENDEE;CN='+icsEscapeText(barberName)+';RSVP=TRUE:mailto:'+barberEm);
+  lines.push(
     'BEGIN:VALARM',
     'TRIGGER:-PT1H',
     'ACTION:DISPLAY',
@@ -527,34 +554,45 @@ function generateICS(apt){
     'END:VALARM',
     'END:VEVENT',
     'END:VCALENDAR'
-  ].join('\r\n');
-  return ics;
+  );
+  return lines.join('\r\n');
 }
-
-function downloadICS(apt){
-  const ics  = generateICS(apt);
-  const blob = new Blob([ics], {type:'text/calendar;charset=utf-8'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'appuntamento-barberos.ics';
+async function downloadICS(apt){
+  const ics=generateICS(apt);
+  const fname='appuntamento-barberos.ics';
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  try{
+    const file=new File([blob],fname,{type:'text/calendar'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Appuntamento BarberOS'});
+      toast('Scegli Calendario o Salva file ✅');
+      return;
+    }
+  }catch(_){/* fallback download */}
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=fname;
+  a.setAttribute('rel','noopener');
+  a.style.cssText='position:fixed;left:-9999px;top:0';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
-  toast('Calendario scaricato! Aprilo per importare ✅');
+  setTimeout(()=>{try{document.body.removeChild(a);}catch(_){}URL.revokeObjectURL(url);},3000);
+  toast('Download avviato. Su iPhone in app installata usa anche «Google» o il menu Condividi.');
 }
-
 function openGoogleCalendar(apt){
-  const svc   = apt.services;
-  const bfn   = apt.barbers?.profiles?.first_name || '';
-  const bln   = apt.barbers?.profiles?.last_name  || '';
-  const start = new Date(apt.start_datetime);
-  const end   = new Date(apt.end_datetime);
-  const fmt   = d => d.toISOString().replace(/[-:]/g,'').replace('.000','');
-  const title = encodeURIComponent('✂️ '+svc?.name+' da '+bfn+' '+bln);
-  const desc  = encodeURIComponent('Appuntamento barberia BarberOS\nServizio: '+svc?.name+'\nPrezzo: €'+apt.price_snapshot);
-  const url   = 'https://calendar.google.com/calendar/render?action=TEMPLATE'+
-    '&text='+title+'&dates='+fmt(start)+'/'+fmt(end)+'&details='+desc+'&sf=true&output=xml';
-  window.open(url, '_blank');
+  const svc=apt.services;
+  const{barberName,barberEm,clientName,clientEm}=aptCalendarParticipants(apt);
+  const start=new Date(apt.start_datetime);
+  const end=new Date(apt.end_datetime);
+  const fmt=d=>d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const title=encodeURIComponent('✂️ '+(svc?.name||'')+' · '+clientName+' / '+barberName);
+  const desc=encodeURIComponent('BarberOS\nServizio: '+(svc?.name||'')+'\nCliente: '+clientName+(clientEm?' <'+clientEm+'>':'')+'\nBarbiere: '+barberName+(barberEm?' <'+barberEm+'>':'')+'\nPrezzo: €'+apt.price_snapshot);
+  let u='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+title+'&dates='+fmt(start)+'/'+fmt(end)+'&details='+desc+'&sf=true&output=xml';
+  if(clientEm)u+='&add='+encodeURIComponent(clientEm);
+  if(barberEm)u+='&add='+encodeURIComponent(barberEm);
+  const w=window.open(u,'_blank','noopener,noreferrer');
+  if(!w||w.closed)window.location.href=u;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -918,7 +956,7 @@ async function doBook(){
 // ═══════════════════════════════════════════════════════════
 async function renderApts(){
   ge('apbody').innerHTML='<div class="ctr"><div class="spin"></div></div>';
-  let q=sb.from('appointments').select('*, services(name,price,duration_minutes), barbers(color_hex, profiles(first_name,last_name)), profiles!appointments_client_id_fkey(first_name,last_name,phone)').order('start_datetime',{ascending:true});
+  let q=sb.from('appointments').select('*, services(name,price,duration_minutes), barbers(color_hex, profiles(first_name,last_name,email)), profiles!appointments_client_id_fkey(first_name,last_name,phone,email)').order('start_datetime',{ascending:true});
   if(ST.profile.role==='CLIENT')q=q.eq('client_id',ST.user.id);
   if(ST.profile.role==='BARBER')q=q.eq('barber_id',ST.barber.id);
   const {data:apts}=await q;
@@ -955,8 +993,9 @@ function mkAptCard(parent,a,canCancel,barberManage){
   ap(info,ce('div','apmeta',dt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+' · '+bfn+' '+bln+who));
   const bdg=ap(info,ce('span','badge '+(BMAP[a.status]||'bgp')));bdg.style.marginTop='6px';bdg.textContent=BLBL[a.status]||a.status;
 
-  if(a.status==='CONFIRMED'&&new Date(a.start_datetime)>new Date()&&ST.profile.role==='CLIENT'){
-    const calRow=ap(info,ce('div'));calRow.style.cssText='display:flex;gap:7px;margin-top:9px';
+  const futureCal=a.status==='CONFIRMED'&&new Date(a.start_datetime)>new Date();
+  if(futureCal&&(ST.profile.role==='CLIENT'||barberManage)){
+    const calRow=ap(info,ce('div'));calRow.style.cssText='display:flex;gap:7px;margin-top:9px;flex-wrap:wrap';
     const bIcs=ap(calRow,ce('button','btn btnical btnsm'));bIcs.textContent='📅 Apple/Outlook';bIcs.onclick=()=>downloadICS(a);
     const bGcal=ap(calRow,ce('button','btn btngcal btnsm'));bGcal.textContent='📅 Google';bGcal.onclick=()=>openGoogleCalendar(a);
   }
@@ -1021,7 +1060,7 @@ async function renderCal(){
   const hdr=ge('cdhdr');hdr.innerHTML='';ap(hdr,ce('div'));
   days.forEach(d=>{const isT=d.toDateString()===new Date().toDateString();ap(hdr,ce('div','cdlbl'+(isT?' td':''),DN[(d.getDay()+6)%7]+' '+d.getDate()));});
   const dF=localISODate(days[0]),dT=localISODate(days[2]);
-  const {data:apts}=await sb.from('appointments').select('*, services(name,duration_minutes), profiles!appointments_client_id_fkey(first_name,last_name)').eq('barber_id',b.id).neq('status','CANCELLED').gte('start_datetime',dF+'T00:00:00').lte('start_datetime',dT+'T23:59:59');
+  const {data:apts}=await sb.from('appointments').select('*, services(name,duration_minutes), barbers(color_hex, profiles(first_name,last_name,email)), profiles!appointments_client_id_fkey(first_name,last_name,email,phone)').eq('barber_id',b.id).neq('status','CANCELLED').gte('start_datetime',dF+'T00:00:00').lte('start_datetime',dT+'T23:59:59');
   const grid=ge('cgrid');grid.innerHTML='';
   const HOURS=[9,10,11,12,13,14,15,16,17,18];
   HOURS.forEach(h=>{
@@ -1140,8 +1179,13 @@ function showAptDetail(a){
     ['Prezzo','€'+a.price_snapshot],
     ['Note',a.notes||'—']
   ];
-  rows.forEach(([l,v],i)=>{const row=ap(mbody,ce('div','crow'));ap(row,ce('span','crlbl',l));const val=ap(row,ce('span','crval',v));if(i===2)val.style.textTransform='capitalize';});
+  rows.forEach(([l,v],i)=>{const row=ap(mbody,ce('div','crow'));ap(row,ce('span','crlbl',l));const val=ap(row,ce('span','crval',v));if(l==='Data')val.style.textTransform='capitalize';});
   const bdg=ap(mbody,ce('span','badge '+(BMAP[a.status]||'bgp')));bdg.style.marginTop='10px';bdg.textContent=BLBL[a.status]||a.status;
+  if(a.status==='CONFIRMED'&&new Date(a.start_datetime)>new Date()){
+    const calRow=ap(mbody,ce('div'));calRow.style.cssText='display:flex;gap:7px;margin-top:14px;flex-wrap:wrap';
+    const bIcs=ap(calRow,ce('button','btn btnical btnsm'));bIcs.textContent='📅 Apple/Outlook';bIcs.onclick=()=>downloadICS(a);
+    const bGcal=ap(calRow,ce('button','btn btngcal btnsm'));bGcal.textContent='📅 Google';bGcal.onclick=()=>openGoogleCalendar(a);
+  }
   if(ST.profile?.role==='BARBER'&&ST.barber&&a.barber_id===ST.barber.id){
     const row=ap(mbody,ce('div'));row.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-top:14px';
     if(a.status==='PENDING'){
