@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS appointments (
   notes          TEXT,
   guest_first_name TEXT,
   guest_last_name  TEXT,
+  guest_email      TEXT,
+  client_confirm_token UUID NOT NULL DEFAULT gen_random_uuid(),
   created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -82,6 +84,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS guest_first_name TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS guest_last_name TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS guest_email TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS client_confirm_token UUID NOT NULL DEFAULT gen_random_uuid();
 ALTER TABLE appointments ALTER COLUMN client_id DROP NOT NULL;
 ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_client_or_guest_chk;
 ALTER TABLE appointments ADD CONSTRAINT appointments_client_or_guest_chk CHECK (
@@ -89,6 +93,7 @@ ALTER TABLE appointments ADD CONSTRAINT appointments_client_or_guest_chk CHECK (
   OR (
     guest_first_name IS NOT NULL AND btrim(guest_first_name) <> ''
     AND guest_last_name IS NOT NULL AND btrim(guest_last_name) <> ''
+    AND guest_email IS NOT NULL AND btrim(guest_email) <> ''
   )
 );
 
@@ -266,6 +271,7 @@ CREATE POLICY "apts_insert" ON appointments FOR INSERT WITH CHECK (
     AND client_id IS NULL
     AND guest_first_name IS NOT NULL AND btrim(guest_first_name) <> ''
     AND guest_last_name IS NOT NULL AND btrim(guest_last_name) <> ''
+    AND guest_email IS NOT NULL AND btrim(guest_email) <> ''
   )
 );
 CREATE POLICY "apts_update" ON appointments FOR UPDATE USING (

@@ -407,6 +407,27 @@ function confirmDialog(message,title){
 }
 function ge(id){return document.getElementById(id);}
 function ce(tag,cls,txt){const el=document.createElement(tag);if(cls)el.className=cls;if(txt!==undefined)el.textContent=txt;return el;}
+function isEmailOk(s){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s||'').trim());}
+async function tryHandleAptInviteFromUrl(){
+  const u=new URL(window.location.href);
+  const aptId=u.searchParams.get('apt');
+  const token=u.searchParams.get('token');
+  const act=u.searchParams.get('act');
+  if(!aptId||!token||(act!=='confirm'&&act!=='decline'))return;
+  try{
+    const r=await fetch(SUPABASE_URL+'/functions/v1/apt-client-action',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify({id:aptId,token,action:act==='confirm'?'confirm':'decline'})
+    });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+    toast(act==='confirm'?'Appuntamento confermato. Controlla l’email per aggiungerlo al calendario.':'Hai rifiutato la proposta.','ok');
+  }catch(e){toast(e.message||'Operazione non riuscita','er');}
+  u.searchParams.delete('apt');u.searchParams.delete('token');u.searchParams.delete('act');
+  const rest=u.searchParams.toString();
+  window.history.replaceState({},document.title,u.pathname+(rest?'?'+rest:'')+u.hash);
+}
 function ap(p,c){p.appendChild(c);return c;}
 function showScreen(id){SCREENS.forEach(s=>{const el=ge(s);if(el)el.className='scr'+(s===id?' on':'');});}
 function setNav(idx){for(let i=0;i<=4;i++){const el=ge('ni'+i);if(el)el.className='ni'+(i===idx?' on':'');}}
@@ -1013,6 +1034,7 @@ async function openCalQuickBook(barberId,ds,h){
   const r1=ap(wrap,ce('div','gr2'));
   const c1=ap(r1,ce('div'));ap(c1,ce('label','lbl','Nome'));ap(c1,ce('input','inp')).id='cqfn';
   const c2=ap(r1,ce('div'));ap(c2,ce('label','lbl','Cognome'));ap(c2,ce('input','inp')).id='cqln';
+  ap(wrap,ce('label','lbl','Email cliente'));const cqem=ap(wrap,ce('input','inp'));cqem.id='cqem';cqem.type='email';cqem.placeholder='cliente@email.it';cqem.autocomplete='email';
   ap(wrap,ce('label','lbl','Stato'));
   const st=ap(wrap,ce('select','inp'));st.id='cqst';[['PENDING','In attesa'],['CONFIRMED','Confermato']].forEach(([v,t])=>{const o=ce('option',null,t);o.value=v;ap(st,o);});
   ap(wrap,ce('label','lbl','Note'));const nt=ap(wrap,ce('textarea','inp'));nt.id='cqnt';nt.rows=2;nt.style.resize='none';
@@ -1026,14 +1048,15 @@ async function openCalQuickBook(barberId,ds,h){
   ssel.onchange=updSlot;
   await updSlot();
   const btn=ap(wrap,ce('button','btn btnp'));btn.textContent='Crea';btn.onclick=async()=>{
-    const sv=svcs.find(x=>x.id===ssel.value),gfn=(ge('cqfn').value||'').trim(),gln=(ge('cqln').value||'').trim(),stt=ge('cqst').value,notes=ge('cqnt').value||'';
+    const sv=svcs.find(x=>x.id===ssel.value),gfn=(ge('cqfn').value||'').trim(),gln=(ge('cqln').value||'').trim(),gem=(ge('cqem').value||'').trim(),stt=ge('cqst').value,notes=ge('cqnt').value||'';
     if(!gfn||!gln){toast('Nome e cognome obbligatori','er');return;}
+    if(!isEmailOk(gem)){toast('Email cliente non valida','er');return;}
     if(!chosen){toast('Nessuno slot valido per questa combinazione','er');return;}
     const {error}=await sb.from('appointments').insert({
       client_id:null,barber_id:barberId,service_id:sv.id,
       start_datetime:chosen.start,end_datetime:chosen.end,
       status:stt,price_snapshot:sv.price,notes,
-      guest_first_name:gfn,guest_last_name:gln
+      guest_first_name:gfn,guest_last_name:gln,guest_email:gem
     });
     if(error){toast(error.message,'er');return;}
     closeModal();renderCal();toast('Appuntamento creato');
@@ -1089,6 +1112,7 @@ function showAptDetail(a){
   const d=new Date(a.start_datetime);
   const rows=[
     ['Cliente',aptClientLabel(a)],
+    ...(a.guest_email?[['Email',a.guest_email]]:[]),
     ['Servizio',a.services?.name||'?'],
     ['Data',d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})],
     ['Orario',d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})],
@@ -1282,7 +1306,7 @@ async function removeBarberRow(bid,userId){
 async function rBdWalkIn(body){
   const b=ST.barber;if(!b){body.innerHTML='<div style="padding:24px;text-align:center;color:var(--mut)">Profilo barbiere mancante</div>';return;}
   body.innerHTML='';const pad=ap(body,ce('div'));pad.style.padding='12px';
-  ap(pad,ce('p',null,'Senza account cliente: usa stato «In attesa» finché non confermi (dopo telefonata / messaggio / notifica).')).style.cssText='font-size:13px;color:var(--mut);margin-bottom:14px;line-height:1.4';
+  ap(pad,ce('p',null,'Inserisci l’email del cliente: riceve un link per confermare o rifiutare (stato «In attesa»). Con «Confermato subito» riceve subito l’email con calendario.')).style.cssText='font-size:13px;color:var(--mut);margin-bottom:14px;line-height:1.4';
   ap(pad,ce('label','lbl','Servizio'));
   const ssel=ap(pad,ce('select','inp'));ssel.id='wisvc';
   const {data:svcs}=await sb.from('services').select('*').eq('is_active',true).order('sort_order');
@@ -1291,6 +1315,7 @@ async function rBdWalkIn(body){
   const r1=ap(pad,ce('div','gr2'));
   const c1=ap(r1,ce('div'));ap(c1,ce('label','lbl','Nome cliente'));ap(c1,ce('input','inp')).id='wigfn';
   const c2=ap(r1,ce('div'));ap(c2,ce('label','lbl','Cognome'));ap(c2,ce('input','inp')).id='wigln';
+  ap(pad,ce('label','lbl','Email cliente'));const wiem=ap(pad,ce('input','inp'));wiem.id='wiem';wiem.type='email';wiem.placeholder='cliente@email.it';wiem.autocomplete='email';
   ap(pad,ce('label','lbl','Data'));
   const din=ap(pad,ce('input','inp'));din.type='date';din.id='widt';const tmr=new Date();tmr.setDate(tmr.getDate()+1);din.value=localISODate(tmr);
   ap(pad,ce('label','lbl','Orario'));
@@ -1313,16 +1338,17 @@ async function rBdWalkIn(body){
   ap(pad,ce('label','lbl','Note'));const nt=ap(pad,ce('textarea','inp'));nt.id='wint';nt.rows=2;nt.style.resize='none';
   await relSlots();
   const sub=ap(pad,ce('button','btn btnp'));sub.style.marginTop='12px';sub.textContent='Crea prenotazione';sub.onclick=async()=>{
-    const svcId=ge('wisvc').value,gfn=(ge('wigfn').value||'').trim(),gln=(ge('wigln').value||'').trim(),stt=ge('wist').value,notes=ge('wint').value||'';
+    const svcId=ge('wisvc').value,gfn=(ge('wigfn').value||'').trim(),gln=(ge('wigln').value||'').trim(),gem=(ge('wiem').value||'').trim(),stt=ge('wist').value,notes=ge('wint').value||'';
     const sl=pad._wiSlot;
     if(!gfn||!gln){toast('Nome e cognome obbligatori','er');return;}
+    if(!isEmailOk(gem)){toast('Email cliente non valida','er');return;}
     if(!sl){toast('Scegli un orario','er');return;}
     const sv=(svcs||[]).find(x=>x.id===svcId);
     const {error}=await sb.from('appointments').insert({
       client_id:null,barber_id:b.id,service_id:svcId,
       start_datetime:sl.start,end_datetime:sl.end,
       status:stt,price_snapshot:sv.price,notes,
-      guest_first_name:gfn,guest_last_name:gln
+      guest_first_name:gfn,guest_last_name:gln,guest_email:gem
     });
     if(error){toast(error.message,'er');return;}
     toast('Prenotazione creata');goNav(1);renderApts();
@@ -1484,6 +1510,7 @@ function attachPullToRefresh(el){
 async function init(){
   const urlHadAuthCode=(window.location.search||'').includes('code=');
   try{
+    await tryHandleAptInviteFromUrl();
     const {data:{session}}=await sb.auth.getSession();
     if((window.location.search||'').includes('code=')){
       const u=new URL(window.location.href);
