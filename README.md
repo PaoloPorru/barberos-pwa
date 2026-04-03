@@ -23,10 +23,11 @@ Stack: **Supabase** (database + auth gratuito) + **Vercel** (hosting gratuito) +
 
 1. Nel pannello Supabase, vai su **SQL Editor** (icona nella sidebar)
 2. Clicca **"New Query"**
-3. Copia tutto il contenuto del file `supabase_schema.sql`
+3. Copia tutto il contenuto del file `supabase_schema.sql` (include tabelle push, `reminder_sent`, colonna `email` profilo e RLS corrette)
 4. Incolla nell'editor e clicca **"Run"** (▶️)
 5. Dovresti vedere "Success" — il database è pronto con tutti i servizi di default
-6. *(Opzionale ma consigliato)* Esegui anche `supabase_schema_v2.sql` e, se la registrazione dà errore, `supabase_fix_signup.sql`
+6. Se la registrazione dà **"Database error saving new user"**, esegui anche **`supabase_fix_signup.sql`** (permessi trigger + colonna `email` se manca)
+7. Se avevi già un DB vecchio senza v2, puoi comunque eseguire `supabase_schema_v2.sql` (è idempotente)
 
 ---
 

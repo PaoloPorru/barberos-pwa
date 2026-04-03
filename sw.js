@@ -1,8 +1,9 @@
 // sw.js — BarberOS Service Worker
 // Gestisce: cache offline + Web Push Notifications
 
-const CACHE = 'barberos-v2';
+const CACHE = 'barberos-v3';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
+const ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230a0a0a'/%3E%3Ctext y='140' x='20' font-size='140'%3E%E2%9C%82%EF%B8%8F%3C/text%3E%3C/svg%3E";
 
 // ── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', e => {
@@ -36,14 +37,14 @@ self.addEventListener('fetch', e => {
 
 // ── PUSH NOTIFICATIONS ───────────────────────────────────────
 self.addEventListener('push', e => {
-  let data = { title: 'BarberOS', body: 'Hai un nuovo aggiornamento', icon: '/icon-192.png' };
+  let data = { title: 'BarberOS', body: 'Hai un nuovo aggiornamento', icon: ICON };
   try { data = { ...data, ...e.data.json() }; } catch {}
 
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body:    data.body,
-      icon:    data.icon  || '/icon-192.png',
-      badge:   data.badge || '/icon-96.png',
+      icon:    data.icon  || ICON,
+      badge:   data.badge || ICON,
       tag:     data.tag   || 'barberos',
       data:    data.url   || '/',
       actions: data.actions || [],

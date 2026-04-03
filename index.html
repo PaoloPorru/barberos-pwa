@@ -491,18 +491,39 @@ async function doReg(){
       toast(msg,'er');
     }
   }
-  else if(data.user){await loadProfile(data.user);afterLogin();toast('Benvenuto, '+fn+'!');}
+  else if(data.user){
+    const {data:{session:s}}=await sb.auth.getSession();
+    if(!s){
+      toast('Controlla la email e conferma l\'account, poi accedi.');
+      authTab('l');ge('le').value=em;
+    }else{
+      await loadProfile(data.user);
+      if(ST.profile){afterLogin();toast('Benvenuto, '+fn+'!');}
+      else{toast('Account creato ma profilo non trovato. Esegui supabase_fix_signup.sql in Supabase.','er');}
+    }
+  }
   btn.disabled=false; btn.textContent='Crea Account →';
 }
 
 async function loadProfile(user){
   ST.user=user;
-  const {data}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  let data=null;
+  for(let attempt=0;attempt<6;attempt++){
+    const res=await sb.from('profiles').select('*').eq('id',user.id).limit(1);
+    if(res.error)break;
+    const row=res.data?.[0];
+    if(row){data=row;break;}
+    await new Promise(r=>setTimeout(r,300));
+  }
+  if(data&&user.email&&data.email!==user.email){
+    await sb.from('profiles').update({email:user.email}).eq('id',user.id);
+    data={...data,email:user.email};
+  }
   ST.profile=data;
   if(data?.role==='BARBER'){
     const {data:b}=await sb.from('barbers').select('*').eq('user_id',user.id).single();
     ST.barber=b;
-  }
+  }else{ST.barber=null;}
 }
 
 function afterLogin(){
@@ -906,11 +927,26 @@ function mAddBarber(){
 async function doAddBarber(wrap){
   const fn=(ge('nbfn').value||'').trim(),ln=(ge('nbln').value||'').trim(),em=(ge('nbem').value||'').trim(),pw=(ge('nbpw').value||'').trim(),bio=(ge('nbbio').value||'').trim(),col=wrap._col||'#c9a84c';
   if(!fn||!ln||!em||!pw){toast('Compila tutti i campi','er');return;}
-  const {data:d2,error:e2}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln,role:'BARBER'}}});
+  const {data:{session:prevAdm}}=await sb.auth.getSession();
+  const {data:d2,error:e2}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln}}});
+  if(prevAdm?.refresh_token){
+    await sb.auth.setSession({access_token:prevAdm.access_token,refresh_token:prevAdm.refresh_token});
+    ST.user=prevAdm.user;
+    await loadProfile(prevAdm.user);
+  }
   if(e2){toast(e2.message,'er');return;}
   if(d2?.user){
-    await sb.from('barbers').insert({user_id:d2.user.id,bio,color_hex:col});
-    for(let d=1;d<=6;d++) await sb.from('availability').insert({barber_id:(await sb.from('barbers').select('id').eq('user_id',d2.user.id).single()).data?.id,day_of_week:d,start_time:'09:00',end_time:'19:00'});
+    const {error:er}=await sb.from('profiles').update({role:'BARBER'}).eq('id',d2.user.id);
+    if(er){toast('Ruolo barbiere: '+er.message,'er');return;}
+    const {error:eb}=await sb.from('barbers').insert({user_id:d2.user.id,bio,color_hex:col});
+    if(eb){toast(eb.message,'er');return;}
+    const {data:bRow}=await sb.from('barbers').select('id').eq('user_id',d2.user.id).single();
+    const bid=bRow?.id;
+    if(!bid){toast('Errore: barbiere non creato','er');return;}
+    for(let d=1;d<=6;d++){
+      const {error:ea}=await sb.from('availability').insert({barber_id:bid,day_of_week:d,start_time:'09:00',end_time:'19:00'});
+      if(ea){toast('Disponibilità: '+ea.message,'er');return;}
+    }
     closeModal();toast('Barbiere creato! Controlla email per conferma.');renderAdmin();
   }
 }
@@ -1015,9 +1051,18 @@ function attachPullToRefresh(el){
 // INIT
 // ═══════════════════════════════════════════════════════════
 async function init(){
-  const {data:{session}}=await sb.auth.getSession();
-  if(session?.user){await loadProfile(session.user);if(ST.profile){afterLogin();return;}}
-  showScreen('sa');
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session?.user){
+      await loadProfile(session.user);
+      if(ST.profile){afterLogin();return;}
+      toast('Sessione senza profilo: esegui lo schema SQL o supabase_fix_signup.sql','er');
+      await sb.auth.signOut();
+    }
+    showScreen('sa');
+  }finally{
+    if(ge('sload'))ge('sload').className='scr';
+  }
 }
 sb.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){document.documentElement.classList.remove('has-nav');ge('nav').style.display='none';showScreen('sa');}});
 ge('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});

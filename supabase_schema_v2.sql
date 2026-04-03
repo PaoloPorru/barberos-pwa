@@ -1,13 +1,12 @@
 -- ============================================================
--- BARBEROS — Schema Aggiornato v2
--- Aggiunte: push_subscriptions + reminder_sent su appointments
--- Incolla nell'SQL Editor di Supabase dopo il primo schema
+-- BARBEROS — Schema v2 (incrementale)
+-- Se hai già eseguito supabase_schema.sql AGGIORNATO, questo file
+-- è in gran parte ridondante: puoi eseguirlo comunque (idempotente).
 -- ============================================================
 
--- Colonna reminder_sent su appointments (se non già presente)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT FALSE;
 
--- Tabella push subscriptions (per notifiche push Web)
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -17,16 +16,16 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 );
 
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "push_own" ON push_subscriptions FOR ALL USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "push_own" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_select" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_insert" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_update" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_delete" ON push_subscriptions;
+CREATE POLICY "push_select" ON push_subscriptions FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "push_insert" ON push_subscriptions FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "push_update" ON push_subscriptions FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "push_delete" ON push_subscriptions FOR DELETE USING (user_id = auth.uid());
 
--- ============================================================
--- DATABASE WEBHOOK per notifiche email automatiche
--- 
--- In Supabase Dashboard:
--- 1. Database → Webhooks → Create a new hook
--- 2. Nome: notify-on-appointment
--- 3. Table: appointments
--- 4. Events: INSERT, UPDATE
--- 5. URL: https://XXXX.supabase.co/functions/v1/notify
--- 6. HTTP Headers: Authorization: Bearer <service_role_key>
--- ============================================================
+-- Webhook notify: Database → Webhooks → appointments INSERT/UPDATE
+-- URL: https://<ref>.supabase.co/functions/v1/notify
+-- Header: Authorization: Bearer <service_role>

@@ -11,6 +11,8 @@
 --
 -- ============================================================
 
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -24,11 +26,12 @@ BEGIN
   fn := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'first_name', '')), '');
   ln := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'last_name', '')), '');
 
-  INSERT INTO public.profiles (id, first_name, last_name, phone, role)
+  INSERT INTO public.profiles (id, first_name, last_name, email, phone, role)
   VALUES (
     NEW.id,
     COALESCE(fn, 'Utente'),
     COALESCE(ln, 'Nuovo'),
+    NEW.email,
     NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'phone', '')), ''),
     'CLIENT'
   )

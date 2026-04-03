@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   first_name  TEXT NOT NULL,
   last_name   TEXT NOT NULL,
+  email       TEXT,
   phone       TEXT,
   role        TEXT NOT NULL DEFAULT 'CLIENT'
                 CHECK (role IN ('CLIENT','BARBER','ADMIN')),
@@ -74,6 +75,18 @@ CREATE TABLE IF NOT EXISTS appointments (
   created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Colonna email profilo (sync da auth) + promemoria / push (v2)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  subscription TEXT NOT NULL,
+  updated_at   TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id)
+);
+
 -- ── INDEXES ─────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_apts_barber_date ON appointments(barber_id, start_datetime);
 CREATE INDEX IF NOT EXISTS idx_apts_client      ON appointments(client_id, status);
@@ -85,13 +98,13 @@ CREATE INDEX IF NOT EXISTS idx_avail_barber     ON availability(barber_id, day_o
 -- ============================================================
 CREATE OR REPLACE FUNCTION get_my_role()
 RETURNS TEXT AS $$
-  SELECT role FROM profiles WHERE id = auth.uid();
-$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+  SELECT role FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE SQL SECURITY DEFINER STABLE SET search_path = public;
 
 CREATE OR REPLACE FUNCTION get_my_barber_id()
 RETURNS UUID AS $$
-  SELECT id FROM barbers WHERE user_id = auth.uid();
-$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+  SELECT id FROM public.barbers WHERE user_id = auth.uid();
+$$ LANGUAGE SQL SECURITY DEFINER STABLE SET search_path = public;
 
 -- ============================================================
 -- AUTO-CREATE PROFILE ON SIGNUP
@@ -108,11 +121,12 @@ DECLARE
 BEGIN
   fn := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'first_name', '')), '');
   ln := NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'last_name', '')), '');
-  INSERT INTO public.profiles (id, first_name, last_name, phone, role)
+  INSERT INTO public.profiles (id, first_name, last_name, email, phone, role)
   VALUES (
     NEW.id,
     COALESCE(fn, 'Utente'),
     COALESCE(ln, 'Nuovo'),
+    NEW.email,
     NULLIF(TRIM(COALESCE(NEW.raw_user_meta_data->>'phone', '')), ''),
     'CLIENT'
   )
@@ -188,6 +202,18 @@ CREATE POLICY "apts_update" ON appointments FOR UPDATE USING (
   OR barber_id = get_my_barber_id()
   OR get_my_role() = 'ADMIN'
 );
+
+-- PUSH (upsert richiede SELECT + INSERT + UPDATE separati)
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "push_own" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_select" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_insert" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_update" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_delete" ON push_subscriptions;
+CREATE POLICY "push_select" ON push_subscriptions FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "push_insert" ON push_subscriptions FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "push_update" ON push_subscriptions FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "push_delete" ON push_subscriptions FOR DELETE USING (user_id = auth.uid());
 
 -- ============================================================
 -- SEED DATA — Servizi di default
